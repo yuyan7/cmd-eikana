@@ -21,7 +21,7 @@ class ViewController: NSViewController, NSTableViewDataSource, NSTableViewDelega
         // Do any additional setup after loading the view.
         
         let showIconState = userDefaults.object(forKey: "showIcon")
-        showIcon.state = NSControl.StateValue(rawValue: showIconState == nil ? 1 : showIconState as! Int)
+        showIcon.state = NSControl.StateValue(rawValue: (showIconState as? Int) ?? 1)
         
         if #available(OSX 10.12, *) {
         } else {
@@ -71,7 +71,7 @@ class ViewController: NSViewController, NSTableViewDataSource, NSTableViewDelega
                 let alert = NSAlert()
                 
                 alert.messageText = "最新バージョンです"
-                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as! String
+                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
                 alert.informativeText = "ver.\(version)"
                 
                 alert.runModal()

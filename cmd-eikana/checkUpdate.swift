@@ -18,16 +18,16 @@ func checkUpdate(_ callback: ((_ isNewVer: Bool?) -> Void)? = nil) {
     let request = URLRequest(url: url)
     
     let handler = { (data:Data?, res:URLResponse?, error:Error?) -> Void in
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as! String
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
         var newVersion = ""
         var description = ""
         var url = "https://ei-kana.appspot.com"
         
         do {
-            if let data = data {
-                let json = try JSONSerialization.jsonObject(with: data, options: []) as! [String: Any]
-                newVersion = json["version"] as! String
-                description = json["description"] as! String
+            if let data = data,
+               let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                newVersion = json["version"] as? String ?? ""
+                description = json["description"] as? String ?? ""
                 
                 if let NSURLDownload = json["url"] as? String {
                     url = NSURLDownload

@@ -25,14 +25,13 @@ class ShortcutsController: NSViewController, NSTableViewDataSource, NSTableViewD
     }
     
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        let id = tableColumn!.identifier
+        guard let id = tableColumn?.identifier else { return nil }
 
         if let cell = tableView.makeView(withIdentifier: id, owner: nil) as? NSTableCellView {
             if id.rawValue == "input" || id.rawValue == "output" {
                 let value = id.rawValue == "input" ? AppState.shared.keyMappingList[row].input : AppState.shared.keyMappingList[row].output
                 
-                // let textField = cell.textField!
-                let textField = cell.subviews[0] as! KeyTextField
+                guard let textField = cell.subviews[0] as? KeyTextField else { return cell }
                 
                 textField.stringValue = value.toString()
                 textField.shortcut = value
@@ -40,7 +39,7 @@ class ShortcutsController: NSViewController, NSTableViewDataSource, NSTableViewD
                 textField.isAllowModifierOnly = id.rawValue == "input"
             }
             if id.rawValue == "mapping-menu" {
-                let button = cell.subviews[0] as! MappingMenu
+                guard let button = cell.subviews[0] as? MappingMenu else { return cell }
                 
                 button.row = row
                 
