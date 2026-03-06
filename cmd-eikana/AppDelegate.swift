@@ -134,9 +134,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let url = URL(fileURLWithPath: Bundle.main.resourcePath!)
         let path = url.deletingLastPathComponent().deletingLastPathComponent().path
         let task = Process()
-        task.launchPath = "/usr/bin/open"
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
         task.arguments = [path]
-        task.launch()
+        do {
+            try task.run()
+        } catch {
+            print("Failed to restart: \(error)")
+        }
         NSApplication.shared.terminate(self)
     }
     
