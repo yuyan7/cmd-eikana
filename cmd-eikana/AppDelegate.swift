@@ -27,13 +27,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let userDefaults = UserDefaults.standard
         
         // 「ログイン後にこのアプリを起動」
-        if userDefaults.object(forKey: "lunchAtStartup") == nil {
+        if userDefaults.object(forKey: "launchAtStartup") == nil {
             setLaunchAtStartup(true)
-            userDefaults.set(1, forKey: "lunchAtStartup")
+            userDefaults.set(1, forKey: "launchAtStartup")
         }
         
         // 「起動時にアップデートを確認」
-        let checkUpdateState = userDefaults.object(forKey: "checkUpdateAtlaunch")
+        let checkUpdateState = userDefaults.object(forKey: "checkUpdateAtLaunch")
         
         if checkUpdateState == nil {
             userDefaults.set(1, forKey: "checkUpdateAtlaunch")

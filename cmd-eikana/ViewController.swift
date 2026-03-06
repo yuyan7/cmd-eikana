@@ -12,8 +12,8 @@ class ViewController: NSViewController, NSTableViewDataSource, NSTableViewDelega
     let userDefaults = UserDefaults.standard
     
     @IBOutlet weak var showIcon: NSButton!
-    @IBOutlet weak var lunchAtStartup: NSButton!
-    @IBOutlet weak var checkUpdateAtlaunch: NSButton!
+    @IBOutlet weak var launchAtStartup: NSButton!
+    @IBOutlet weak var checkUpdateAtLaunch: NSButton!
     @IBOutlet weak var updateButton: NSButton!
     
     override func viewDidLoad() {
@@ -29,8 +29,8 @@ class ViewController: NSViewController, NSTableViewDataSource, NSTableViewDelega
             showIcon.isEnabled = false
         }
         
-        lunchAtStartup.state = NSControl.StateValue(rawValue: userDefaults.integer(forKey: "lunchAtStartup"))
-        checkUpdateAtlaunch.state = NSControl.StateValue(rawValue: userDefaults.integer(forKey: "checkUpdateAtlaunch"))
+        launchAtStartup.state = NSControl.StateValue(rawValue: userDefaults.integer(forKey: "launchAtStartup"))
+        checkUpdateAtLaunch.state = NSControl.StateValue(rawValue: userDefaults.integer(forKey: "checkUpdateAtLaunch"))
     }
 
     override var representedObject: Any? {
@@ -44,12 +44,12 @@ class ViewController: NSViewController, NSTableViewDataSource, NSTableViewDelega
         AppState.shared.statusItem.isVisible = (showIcon.state == NSControl.StateValue.on)
         userDefaults.set(showIcon.state, forKey: "showIcon")
     }
-    @IBAction func clickLunchAtStartup(_ sender: AnyObject) {
-        setLaunchAtStartup(lunchAtStartup.state == NSControl.StateValue.on)
-        userDefaults.set(lunchAtStartup.state, forKey: "lunchAtStartup")
+    @IBAction func clickLaunchAtStartup(_ sender: AnyObject) {
+        setLaunchAtStartup(launchAtStartup.state == NSControl.StateValue.on)
+        userDefaults.set(launchAtStartup.state, forKey: "launchAtStartup")
     }
-    @IBAction func clickCheckUpdateAtlaunch(_ sender: AnyObject) {
-        userDefaults.set(checkUpdateAtlaunch.state, forKey: "checkUpdateAtlaunch")
+    @IBAction func clickCheckUpdateAtLaunch(_ sender: AnyObject) {
+        userDefaults.set(checkUpdateAtLaunch.state, forKey: "checkUpdateAtLaunch")
     }
     @IBAction func test(_ sender: Any) {
         
