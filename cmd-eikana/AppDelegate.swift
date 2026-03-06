@@ -16,14 +16,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     let keyEvent = KeyEvent()
     
     func applicationDidFinishLaunching(_ aNotification: Notification) {
-        // Insert code here to initialize your application
-        
-//         resetUserDefault() // デバッグ用
-        
-        ////////////////////////////
-        // 保存データの読み込み
-        ////////////////////////////
-        
         let userDefaults = UserDefaults.standard
         
         // 「ログイン後にこのアプリを起動」
@@ -36,7 +28,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let checkUpdateState = userDefaults.object(forKey: "checkUpdateAtLaunch")
         
         if checkUpdateState == nil {
-            userDefaults.set(1, forKey: "checkUpdateAtlaunch")
+            userDefaults.set(1, forKey: "checkUpdateAtLaunch")
             checkUpdate()
         }
         else if let state = checkUpdateState as? Int, state == 1 {
@@ -91,22 +83,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             AppState.shared.keyMappingListToShortcutList()
         }
         
-        ////////////////////////////
-        // UIの初期化
-        ////////////////////////////
-        
         preferenceWindowController = PreferenceWindowController.getInstance()
-        // preferenceWindowController.showAndActivate(self)
         
         let menu = NSMenu()
         AppState.shared.statusItem.title = "⌘"
         AppState.shared.statusItem.highlightMode = true
         AppState.shared.statusItem.menu = menu
-        
-//        loginItem = menu.addItem(withTitle: "ログイン時に開く", action: #selector(AppDelegate.launch(_:)), keyEquivalent: "")
-//        loginItem.state = applicationIsInStartUpItems() ? 1 : 0
-//        
-//        menu.addItem(NSMenuItem.separator())
         
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
         
@@ -119,9 +101,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         keyEvent.start()
     }
     
-    func applicationWillTerminate(_ aNotification: Notification) {
-        // Insert code here to tear down your application
-    }
+    func applicationWillTerminate(_ aNotification: Notification) {}
     
     func applicationDidResignActive(_ notification: Notification) {
         AppState.shared.activeKeyTextField?.blur()
@@ -148,17 +128,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     @IBAction func openPreferencesSerector(_ sender: NSButton) {
         preferenceWindowController.showAndActivate(self)
-    }
-    
-    @IBAction func launch(_ sender: NSButton) {
-        if sender.state.rawValue == 0 {
-            sender.state = NSControl.StateValue(rawValue: 1)
-//            addLaunchAtStartup()
-        }
-        else {
-            sender.state = NSControl.StateValue(rawValue: 0)
-//            removeLaunchAtStartup()
-        }
     }
     
     @IBAction func restart(_ sender: NSButton) {
