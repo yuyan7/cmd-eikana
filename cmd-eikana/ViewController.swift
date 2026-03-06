@@ -41,7 +41,7 @@ class ViewController: NSViewController, NSTableViewDataSource, NSTableViewDelega
 
     @available(OSX 10.12, *)
     @IBAction func clickShowIcon(_ sender: AnyObject) {
-        statusItem.isVisible = (showIcon.state == NSControl.StateValue.on)
+        AppState.shared.statusItem.isVisible = (showIcon.state == NSControl.StateValue.on)
         userDefaults.set(showIcon.state, forKey: "showIcon")
     }
     @IBAction func clickLunchAtStartup(_ sender: AnyObject) {

@@ -8,11 +8,6 @@
 
 import Cocoa
 
-var activeAppsList: [AppData] = []
-var exclusionAppsList: [AppData] = []
-
-var exclusionAppsDict: [String: String] = [:]
-
 class KeyEvent: NSObject {
     var keyCode: CGKeyCode? = nil
     var isExclusionApp = false
@@ -57,14 +52,14 @@ class KeyEvent: NSObject {
         let app = notification.userInfo!["NSWorkspaceApplicationKey"] as! NSRunningApplication
         
         if let name = app.localizedName, let id = app.bundleIdentifier {
-            isExclusionApp = exclusionAppsDict[id] != nil
+            isExclusionApp = AppState.shared.exclusionAppsDict[id] != nil
             
             if (id != bundleId && !isExclusionApp) {
-                activeAppsList = activeAppsList.filter {$0.id != id}
-                activeAppsList.insert(AppData(name: name, id: id), at: 0)
+                AppState.shared.activeAppsList = AppState.shared.activeAppsList.filter {$0.id != id}
+                AppState.shared.activeAppsList.insert(AppData(name: name, id: id), at: 0)
                 
-                if activeAppsList.count > 10 {
-                    activeAppsList.removeLast()
+                if AppState.shared.activeAppsList.count > 10 {
+                    AppState.shared.activeAppsList.removeLast()
                 }
             }
         }
@@ -178,7 +173,7 @@ class KeyEvent: NSObject {
         
         self.keyCode = nil
       
-        if let keyTextField = activeKeyTextField {
+        if let keyTextField = AppState.shared.activeKeyTextField {
             keyTextField.shortcut = KeyboardShortcut(event)
             keyTextField.stringValue = keyTextField.shortcut!.toString()
                         
@@ -215,7 +210,7 @@ class KeyEvent: NSObject {
 
         self.keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
         
-        if let keyTextField = activeKeyTextField, keyTextField.isAllowModifierOnly {
+        if let keyTextField = AppState.shared.activeKeyTextField, keyTextField.isAllowModifierOnly {
             let shortcut = KeyboardShortcut(event)
             
             keyTextField.shortcut = shortcut
@@ -226,7 +221,7 @@ class KeyEvent: NSObject {
     }
     
     func modifierKeyUp(_ event: CGEvent) -> Unmanaged<CGEvent>? {
-        if activeKeyTextField != nil {
+        if AppState.shared.activeKeyTextField != nil {
             self.keyCode = nil
         }
         else if self.keyCode == CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) {
@@ -247,7 +242,7 @@ class KeyEvent: NSObject {
         
         self.keyCode = nil
         
-        if let keyTextField = activeKeyTextField {
+        if let keyTextField = AppState.shared.activeKeyTextField {
             if keyTextField.isAllowModifierOnly {
                 keyTextField.shortcut = KeyboardShortcut(keyCode: CGKeyCode(1000 + mediaKeyEvent.keyCode),
                                                          flags: mediaKeyEvent.flags)
@@ -285,7 +280,7 @@ class KeyEvent: NSObject {
         let shortcht = event.type.rawValue == UInt32(NX_SYSDEFINED) ?
             KeyboardShortcut(keyCode: 0, flags: MediaKeyEvent(event)!.flags) : KeyboardShortcut(event)
         
-        if let mappingList = shortcutList[keyCode ?? shortcht.keyCode] {
+        if let mappingList = AppState.shared.shortcutList[keyCode ?? shortcht.keyCode] {
             for mappings in mappingList {
                 if shortcht.isCover(mappings.input) {
                     hasConvertedEventLog = mappings
@@ -321,7 +316,7 @@ class KeyEvent: NSObject {
             return event
         }
         
-        if let mappingList = shortcutList[keyCode ?? shortcht.keyCode] {
+        if let mappingList = AppState.shared.shortcutList[keyCode ?? shortcht.keyCode] {
             if let mappings = hasConvertedEventLog,
                 shortcht.isCover(mappings.input) {
                 

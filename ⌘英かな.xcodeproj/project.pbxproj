@@ -28,6 +28,7 @@
 		62D162E71D3B350B009C95B0 /* toggleLaunchAtStartup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62D162E61D3B350B009C95B0 /* toggleLaunchAtStartup.swift */; };
 		62FE51611DC70C5B0037B8D1 /* ExclusionAppsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62FE51601DC70C5B0037B8D1 /* ExclusionAppsController.swift */; };
 		62FE51631DC75ECE0037B8D1 /* AppData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62FE51621DC75ECE0037B8D1 /* AppData.swift */; };
+		AAAA0001REFA0001REFA001 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAA0002REFA0001REFA001 /* AppState.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -70,6 +71,7 @@
 		62D162E61D3B350B009C95B0 /* toggleLaunchAtStartup.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = toggleLaunchAtStartup.swift; sourceTree = "<group>"; };
 		62FE51601DC70C5B0037B8D1 /* ExclusionAppsController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ExclusionAppsController.swift; sourceTree = "<group>"; };
 		62FE51621DC75ECE0037B8D1 /* AppData.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppData.swift; sourceTree = "<group>"; };
+		AAAA0002REFA0001REFA001 /* AppState.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -133,6 +135,7 @@
 			isa = PBXGroup;
 			children = (
 				6294281A1D387503001BD4E9 /* AppDelegate.swift */,
+				AAAA0002REFA0001REFA001 /* AppState.swift */,
 				620E0AD61D9E97BA0067F88B /* checkUpdate.swift */,
 				62D162E61D3B350B009C95B0 /* toggleLaunchAtStartup.swift */,
 				627265F51D3CC84000703F85 /* KeyEvent.swift */,
@@ -272,6 +275,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AAAA0001REFA0001REFA001 /* AppState.swift in Sources */,
 				62FE51631DC75ECE0037B8D1 /* AppData.swift in Sources */,
 				620E0AD71D9E97BA0067F88B /* checkUpdate.swift in Sources */,
 				62BEA2A41DA739B6004409AE /* ShortcutsController.swift in Sources */,

@@ -13,37 +13,37 @@ class MappingMenu: NSPopUpButton {
     
     func up() {
         if let row = self.row, row - 1 != -1 {
-            let keyMapping = keyMappingList[row]
+            let keyMapping = AppState.shared.keyMappingList[row]
             
-            keyMappingList[row] = keyMappingList[row - 1]
-            keyMappingList[row - 1] = keyMapping
+            AppState.shared.keyMappingList[row] = AppState.shared.keyMappingList[row - 1]
+            AppState.shared.keyMappingList[row - 1] = keyMapping
         }
     }
     func move(_ at: Int) {
         var at = at
         if let row = self.row {
-            let keyMapping = keyMappingList[row]
+            let keyMapping = AppState.shared.keyMappingList[row]
             
             if at < 0 {
                 at = 0
             }
-            else if at > keyMappingList.count - 1 {
-                at = keyMappingList.count - 1
+            else if at > AppState.shared.keyMappingList.count - 1 {
+                at = AppState.shared.keyMappingList.count - 1
             }
             
-            keyMappingList.remove(at: row)
-            keyMappingList.insert(keyMapping, at: at)
+            AppState.shared.keyMappingList.remove(at: row)
+            AppState.shared.keyMappingList.insert(keyMapping, at: at)
         }
     }
     func down() {
-        if let row = self.row, row + 1 != keyMappingList.count {
-            let keyMapping = keyMappingList[row]
+        if let row = self.row, row + 1 != AppState.shared.keyMappingList.count {
+            let keyMapping = AppState.shared.keyMappingList[row]
             
-            keyMappingList[row] = keyMappingList[row + 1]
-            keyMappingList[row + 1] = keyMapping
+            AppState.shared.keyMappingList[row] = AppState.shared.keyMappingList[row + 1]
+            AppState.shared.keyMappingList[row + 1] = keyMapping
         }
     }
     func remove() {
-        keyMappingList.remove(at: self.row!)
+        AppState.shared.keyMappingList.remove(at: self.row!)
     }
 }

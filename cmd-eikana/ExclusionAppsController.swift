@@ -22,19 +22,19 @@ class ExclusionAppsController: NSViewController, NSTableViewDataSource, NSTableV
     }
     
     func numberOfRows(in tableView: NSTableView) -> Int {
-        return exclusionAppsList.count + activeAppsList.count
+        return AppState.shared.exclusionAppsList.count + AppState.shared.activeAppsList.count
     }
     
     func tableView(_ tableView: NSTableView, objectValueFor tableColumn: NSTableColumn?, row: Int) -> Any? {
         let id = tableColumn!.identifier
         
-        let isExclusion =  row < exclusionAppsList.count
+        let isExclusion =  row < AppState.shared.exclusionAppsList.count
         
         if id.rawValue == "checkbox" {
             return isExclusion
         }
         
-        let value = isExclusion ? exclusionAppsList[row] : activeAppsList[row - exclusionAppsList.count]
+        let value = isExclusion ? AppState.shared.exclusionAppsList[row] : AppState.shared.activeAppsList[row - AppState.shared.exclusionAppsList.count]
         
         if id.rawValue == "appName" {
             return value.name
@@ -47,36 +47,28 @@ class ExclusionAppsController: NSViewController, NSTableViewDataSource, NSTableV
     }
     func tableView(_ tableView: NSTableView, setObjectValue object: Any?, for tableColumn: NSTableColumn?, row: Int) {
         let id = tableColumn!.identifier
-        let isExclusion =  row < exclusionAppsList.count
+        let isExclusion =  row < AppState.shared.exclusionAppsList.count
         
         if id != NSUserInterfaceItemIdentifier(rawValue: "checkbox") {
             return
         }
         
         if isExclusion {
-            let item = exclusionAppsList.remove(at: row)
-            activeAppsList.insert(item, at: 0)
+            let item = AppState.shared.exclusionAppsList.remove(at: row)
+            AppState.shared.activeAppsList.insert(item, at: 0)
         }
         else {
-            let item = activeAppsList.remove(at: row - exclusionAppsList.count)
-            exclusionAppsList.append(item)
+            let item = AppState.shared.activeAppsList.remove(at: row - AppState.shared.exclusionAppsList.count)
+            AppState.shared.exclusionAppsList.append(item)
         }
         
-        exclusionAppsDict = [:]
-        
-        for val in exclusionAppsList {
-            exclusionAppsDict[val.id] = val.name
-        }
+        AppState.shared.rebuildExclusionAppsDict()
         
         tableReload()
-        saveExclusionApps()
+        AppState.shared.saveExclusionApps()
     }
     
     @objc func tableReload() {
         tableView.reloadData()
-    }
-    
-    func saveExclusionApps() {
-        UserDefaults.standard.set(exclusionAppsList.map {$0.toDictionary()} , forKey: "exclusionApps")
     }
 }

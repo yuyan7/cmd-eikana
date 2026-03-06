@@ -8,9 +8,6 @@
 
 import Cocoa
 
-var statusItem = NSStatusBar.system.statusItem(withLength: CGFloat(NSStatusItem.variableLength))
-var loginItem = NSMenuItem()
-
 @NSApplicationMain
 class AppDelegate: NSObject, NSApplicationDelegate {
 
@@ -42,7 +39,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             userDefaults.set(1, forKey: "checkUpdateAtlaunch")
             checkUpdate()
         }
-        else if checkUpdateState as! Int == 1 {
+        else if let state = checkUpdateState as? Int, state == 1 {
             checkUpdate()
         }
         
@@ -50,24 +47,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let exclusionAppsListData = userDefaults.object(forKey: "exclusionApps") as? [[AnyHashable: Any]] {
             for val in exclusionAppsListData {
                 if let exclusionApps = AppData(dictionary: val) {
-                    exclusionAppsList.append(exclusionApps)
+                    AppState.shared.exclusionAppsList.append(exclusionApps)
                 }
             }
             
-            for val in exclusionAppsList {
-                exclusionAppsDict[val.id] = val.name
-            }
+            AppState.shared.rebuildExclusionAppsDict()
         }
         
         // ショートカット設定
         if let keyMappingListData = userDefaults.object(forKey: "mappings") as? [[AnyHashable: Any]] {
             for val in keyMappingListData {
                 if let mapping = KeyMapping(dictionary: val) {
-                    keyMappingList.append(mapping)
+                    AppState.shared.keyMappingList.append(mapping)
                 }
             }
             
-            keyMappingListToShortcutList()
+            AppState.shared.keyMappingListToShortcutList()
         }
         else {
             if let oneShotModifiersData = userDefaults.object(forKey: "oneShotModifiers") as? [AnyObject] {
@@ -77,7 +72,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                         let outputDic = val["output"] as? [AnyHashable: Any],
                         let output = KeyboardShortcut(dictionary: outputDic)
                     {
-                        keyMappingList.append(KeyMapping(input: KeyboardShortcut(keyCode: CGKeyCode(inputKeyCodeInt)),
+                        AppState.shared.keyMappingList.append(KeyMapping(input: KeyboardShortcut(keyCode: CGKeyCode(inputKeyCodeInt)),
                                                          output: output))
                     }
                 }
@@ -86,14 +81,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             else {
                 // 初期設定（左右のコマンドキー単体で英数/かな）
-                keyMappingList = [
+                AppState.shared.keyMappingList = [
                     KeyMapping(input: KeyboardShortcut(keyCode: 55), output: KeyboardShortcut(keyCode: 102)),
                     KeyMapping(input: KeyboardShortcut(keyCode: 54), output: KeyboardShortcut(keyCode: 104))
                 ]
             }
             
-            saveKeyMappings()
-            keyMappingListToShortcutList()
+            AppState.shared.saveKeyMappings()
+            AppState.shared.keyMappingListToShortcutList()
         }
         
         ////////////////////////////
@@ -104,9 +99,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // preferenceWindowController.showAndActivate(self)
         
         let menu = NSMenu()
-        statusItem.title = "⌘"
-        statusItem.highlightMode = true
-        statusItem.menu = menu
+        AppState.shared.statusItem.title = "⌘"
+        AppState.shared.statusItem.highlightMode = true
+        AppState.shared.statusItem.menu = menu
         
 //        loginItem = menu.addItem(withTitle: "ログイン時に開く", action: #selector(AppDelegate.launch(_:)), keyEquivalent: "")
 //        loginItem.state = applicationIsInStartUpItems() ? 1 : 0
@@ -129,7 +124,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationDidResignActive(_ notification: Notification) {
-        activeKeyTextField?.blur()
+        AppState.shared.activeKeyTextField?.blur()
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         preferenceWindowController.showAndActivate(self)

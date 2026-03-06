@@ -8,8 +8,6 @@
 
 import Cocoa
 
-var activeKeyTextField: KeyTextField?
-
 class KeyTextField: NSComboBox {
     /// Custom delegate with other methods than NSTextFieldDelegate.
     var shortcut: KeyboardShortcut? = nil
@@ -19,7 +17,7 @@ class KeyTextField: NSComboBox {
     override func becomeFirstResponder() -> Bool {
         let became = super.becomeFirstResponder();
         if (became) {
-            activeKeyTextField = self
+            AppState.shared.activeKeyTextField = self
         }
         return became;
     }
@@ -67,26 +65,26 @@ class KeyTextField: NSComboBox {
             
             if let saveAddress = saveAddress {
                 if saveAddress.id == "input" {
-                    keyMappingList[saveAddress.row].input = shortcut
+                    AppState.shared.keyMappingList[saveAddress.row].input = shortcut
                 }
                 else {
-                    keyMappingList[saveAddress.row].output = shortcut
+                    AppState.shared.keyMappingList[saveAddress.row].output = shortcut
                 }
-                keyMappingListToShortcutList()
+                AppState.shared.keyMappingListToShortcutList()
             }
         }
         else {
             self.stringValue = ""
         }
         
-        saveKeyMappings()
+        AppState.shared.saveKeyMappings()
         
-        if activeKeyTextField == self {
-            activeKeyTextField = nil
+        if AppState.shared.activeKeyTextField == self {
+            AppState.shared.activeKeyTextField = nil
         }
     }
     func blur() {
         self.window?.makeFirstResponder(nil)
-        activeKeyTextField = nil
+        AppState.shared.activeKeyTextField = nil
     }
 }
