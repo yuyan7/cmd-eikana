@@ -57,7 +57,8 @@ class ViewController: NSViewController, NSTableViewDataSource, NSTableViewDelega
     
     @IBAction func checkUpdateButton(_ sender: AnyObject) {
         updateButton.isEnabled = false
-        checkUpdate({ (isNewVer: Bool?) -> Void in
+        checkUpdate({ [weak self] (isNewVer: Bool?) -> Void in
+            guard let self = self else { return }
             self.updateButton.isEnabled = true
             if isNewVer == nil {
                 let alert = NSAlert()
