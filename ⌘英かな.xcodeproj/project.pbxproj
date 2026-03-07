@@ -214,7 +214,6 @@
 				TargetAttributes = {
 					620E0B3F1D9F2F8F0067F88B = {
 						CreatedOnToolsVersion = 8.0;
-						ProvisioningStyle = Automatic;
 					};
 					629428161D387503001BD4E9 = {
 						CreatedOnToolsVersion = 7.3;
@@ -331,17 +330,20 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_SUSPICIOUS_MOVES = YES;
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = D3VK56MX7L;
 				INFOPLIST_FILE = "cmd-eikana-helper/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "io.github.imasanari.cmd-eikana-helper";
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.yuyan7.cmd-eikana-helper";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
 			name = Debug;
 		};
@@ -351,17 +353,20 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_SUSPICIOUS_MOVES = YES;
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = D3VK56MX7L;
 				INFOPLIST_FILE = "cmd-eikana-helper/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "io.github.imasanari.cmd-eikana-helper";
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.yuyan7.cmd-eikana-helper";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
 			name = Release;
 		};
@@ -487,19 +492,22 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 16;
 				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = D3VK56MX7L;
 				INFOPLIST_FILE = "cmd-eikana/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 2.2.3;
-				PRODUCT_BUNDLE_IDENTIFIER = "io.github.imasanari.cmd-eikana";
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.yuyan7.cmd-eikana";
 				PRODUCT_NAME = "⌘英かな";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
@@ -508,19 +516,22 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 16;
 				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = D3VK56MX7L;
 				INFOPLIST_FILE = "cmd-eikana/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 2.2.3;
-				PRODUCT_BUNDLE_IDENTIFIER = "io.github.imasanari.cmd-eikana";
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.yuyan7.cmd-eikana";
 				PRODUCT_NAME = "⌘英かな";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;

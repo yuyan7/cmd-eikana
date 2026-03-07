@@ -13,6 +13,10 @@ class KeyEvent: NSObject {
     var isExclusionApp = false
     let bundleId: String = Bundle.main.infoDictionary?["CFBundleIdentifier"] as? String ?? ""
     var hasConvertedEventLog: KeyMapping? = nil
+    var eventTap: CFMachPort?
+    var permissionTimer: Timer?
+    var hasShownPermissionAlert = false
+    var isWatching = false
 
     override init() {
         super.init()
@@ -23,29 +27,142 @@ class KeyEvent: NSObject {
                                                             selector: #selector(KeyEvent.setActiveApp(_:)),
                                                             name: NSWorkspace.didActivateApplicationNotification,
                                                             object:nil)
-        
-        let checkOptionPrompt = kAXTrustedCheckOptionPrompt.takeRetainedValue() as NSString
-        let options: CFDictionary = [checkOptionPrompt: true] as NSDictionary
-        
-        if !AXIsProcessTrustedWithOptions(options) {
-            // アクセシビリティに設定されていない場合、設定されるまでループで待つ
-            Timer.scheduledTimer(timeInterval: 1.0,
-                                 target: self,
-                                 selector: #selector(KeyEvent.watchAXIsProcess(_:)),
-                                 userInfo: nil,
-                                 repeats: true)
-        }
-        else {
-            self.watch()
+
+        if ensurePermissions(prompt: true) {
+            watch()
+        } else {
+            startPermissionTimer()
         }
     }
-    
-    @objc func watchAXIsProcess(_ timer: Timer) {
-        if AXIsProcessTrusted() {
-            timer.invalidate()
-            
-            self.watch()
+
+    func ensurePermissions(prompt: Bool) -> Bool {
+        let hasInputMonitoring = requestInputMonitoringAccess(prompt: prompt)
+        let hasPostEventAccess = requestPostEventAccess(prompt: prompt)
+        let hasAccessibilityAccess = requestAccessibilityAccess(prompt: prompt)
+
+        if !hasInputMonitoring || !hasPostEventAccess || !hasAccessibilityAccess {
+            if prompt {
+                showPermissionAlert(inputMonitoring: hasInputMonitoring,
+                                    postEventAccess: hasPostEventAccess,
+                                    accessibility: hasAccessibilityAccess)
+            }
+            return false
         }
+
+        hasShownPermissionAlert = false
+        return true
+    }
+
+    func requestInputMonitoringAccess(prompt: Bool) -> Bool {
+        if CGPreflightListenEventAccess() {
+            return true
+        }
+
+        if prompt {
+            return CGRequestListenEventAccess()
+        }
+
+        return false
+    }
+
+    func requestPostEventAccess(prompt: Bool) -> Bool {
+        if CGPreflightPostEventAccess() {
+            return true
+        }
+
+        if prompt {
+            return CGRequestPostEventAccess()
+        }
+
+        return false
+    }
+
+    func requestAccessibilityAccess(prompt: Bool) -> Bool {
+        if prompt {
+            let checkOptionPrompt = kAXTrustedCheckOptionPrompt.takeRetainedValue() as NSString
+            let options: CFDictionary = [checkOptionPrompt: true] as NSDictionary
+            return AXIsProcessTrustedWithOptions(options)
+        }
+
+        return AXIsProcessTrusted()
+    }
+
+    func startPermissionTimer() {
+        if permissionTimer != nil {
+            return
+        }
+
+        permissionTimer = Timer.scheduledTimer(timeInterval: 1.0,
+                                               target: self,
+                                               selector: #selector(KeyEvent.watchPermissions(_:)),
+                                               userInfo: nil,
+                                               repeats: true)
+    }
+
+    @objc func watchPermissions(_ timer: Timer) {
+        if ensurePermissions(prompt: false) {
+            timer.invalidate()
+            permissionTimer = nil
+            watch()
+        }
+    }
+
+    func showPermissionAlert(inputMonitoring: Bool,
+                             postEventAccess: Bool,
+                             accessibility: Bool) {
+        if hasShownPermissionAlert {
+            return
+        }
+
+        hasShownPermissionAlert = true
+
+        var missingPermissions: [String] = []
+
+        if !inputMonitoring {
+            missingPermissions.append("- 入力監視を許可してください")
+        }
+
+        if !postEventAccess {
+            missingPermissions.append("- キーボード操作を送出するための監視権限を許可してください")
+        }
+
+        if !accessibility {
+            missingPermissions.append("- アクセシビリティを許可してください")
+        }
+
+        let alert = NSAlert()
+        alert.messageText = "⌘英かなの権限設定が必要です"
+        alert.informativeText = "⌘英かなを使うには次の権限が必要です。\n\n"
+            + missingPermissions.joined(separator: "\n")
+            + "\n\nシステム設定 > プライバシーとセキュリティ で許可したあと、自動で再開します。"
+        alert.addButton(withTitle: "システム設定を開く")
+        alert.addButton(withTitle: "あとで")
+
+        if alert.runModal() == .alertFirstButtonReturn {
+            openPrivacySettings(inputMonitoring: inputMonitoring,
+                                postEventAccess: postEventAccess,
+                                accessibility: accessibility)
+        }
+    }
+
+    func openPrivacySettings(inputMonitoring: Bool,
+                             postEventAccess: Bool,
+                             accessibility: Bool) {
+        let privacyPaneURL: String
+
+        if !inputMonitoring {
+            privacyPaneURL = "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
+        } else if !postEventAccess {
+            privacyPaneURL = "x-apple.systempreferences:com.apple.preference.security?Privacy_PostEvent"
+        } else {
+            privacyPaneURL = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+        }
+
+        if let url = URL(string: privacyPaneURL), NSWorkspace.shared.open(url) {
+            return
+        }
+
+        NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app"))
     }
     
     @objc func setActiveApp(_ notification: NSNotification) {
@@ -69,6 +186,12 @@ class KeyEvent: NSObject {
     }
     
     func watch() {
+        if isWatching {
+            return
+        }
+
+        isWatching = true
+
         // マウスのドラッグバグ回避のため、NSEventとCGEventを併用
         // CGEventのみでやる方法を捜索中
         let nsEventMaskList: NSEvent.EventTypeMask = [
@@ -128,6 +251,8 @@ class KeyEvent: NSObject {
                 print("failed to create event tap")
                 exit(1)
         }
+
+        self.eventTap = eventTap
         
         let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
         
@@ -137,6 +262,13 @@ class KeyEvent: NSObject {
     }
     
     func eventCallback(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+            if let eventTap = eventTap {
+                CGEvent.tapEnable(tap: eventTap, enable: true)
+            }
+            return Unmanaged.passUnretained(event)
+        }
+
         if isExclusionApp {
             return Unmanaged.passUnretained(event)
         }
