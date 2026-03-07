@@ -1043,7 +1043,7 @@
                                     <font key="font" metaFont="system"/>
                                 </buttonCell>
                                 <connections>
-                                    <action selector="clickLunchAtStartup:" target="uYA-LV-zsC" id="L1b-hb-woE"/>
+                                    <action selector="clickLaunchAtStartup:" target="uYA-LV-zsC" id="L1b-hb-woE"/>
                                 </connections>
                             </button>
                             <button fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="SNT-SJ-fye">
@@ -1054,7 +1054,7 @@
                                     <font key="font" metaFont="system"/>
                                 </buttonCell>
                                 <connections>
-                                    <action selector="clickCheckUpdateAtlaunch:" target="uYA-LV-zsC" id="tte-AD-LOu"/>
+                                    <action selector="clickCheckUpdateAtLaunch:" target="uYA-LV-zsC" id="tte-AD-LOu"/>
                                 </connections>
                             </button>
                             <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="jqL-vq-Vub">
