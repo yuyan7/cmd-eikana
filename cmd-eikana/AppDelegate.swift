@@ -39,22 +39,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let exclusionAppsListData = userDefaults.object(forKey: "exclusionApps") as? [[AnyHashable: Any]] {
             for val in exclusionAppsListData {
                 if let exclusionApps = AppData(dictionary: val) {
-                    AppState.shared.exclusionAppsList.append(exclusionApps)
+                    AppState.shared.addExcludedApp(exclusionApps)
                 }
             }
-            
-            AppState.shared.rebuildExclusionAppsDict()
         }
         
         // ショートカット設定
         if let keyMappingListData = userDefaults.object(forKey: "mappings") as? [[AnyHashable: Any]] {
             for val in keyMappingListData {
                 if let mapping = KeyMapping(dictionary: val) {
-                    AppState.shared.keyMappingList.append(mapping)
+                    AppState.shared.addKeyMapping(mapping)
                 }
             }
-            
-            AppState.shared.keyMappingListToShortcutList()
         }
         else {
             if let oneShotModifiersData = userDefaults.object(forKey: "oneShotModifiers") as? [AnyObject] {
@@ -64,8 +60,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                         let outputDic = val["output"] as? [AnyHashable: Any],
                         let output = KeyboardShortcut(dictionary: outputDic)
                     {
-                        AppState.shared.keyMappingList.append(KeyMapping(input: KeyboardShortcut(keyCode: CGKeyCode(inputKeyCodeInt)),
-                                                         output: output))
+                        AppState.shared.addKeyMapping(KeyMapping(input: KeyboardShortcut(keyCode: CGKeyCode(inputKeyCodeInt)),
+                                                                  output: output))
                     }
                 }
                 
@@ -73,22 +69,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             else {
                 // 初期設定（左右のコマンドキー単体で英数/かな）
-                AppState.shared.keyMappingList = [
+                AppState.shared.setKeyMappings([
                     KeyMapping(input: KeyboardShortcut(keyCode: 55), output: KeyboardShortcut(keyCode: 102)),
                     KeyMapping(input: KeyboardShortcut(keyCode: 54), output: KeyboardShortcut(keyCode: 104))
-                ]
+                ])
             }
-            
+
             AppState.shared.saveKeyMappings()
-            AppState.shared.keyMappingListToShortcutList()
         }
         
         preferenceWindowController = PreferenceWindowController.getInstance()
         
         let menu = NSMenu()
-        AppState.shared.statusItem.title = "⌘"
-        AppState.shared.statusItem.highlightMode = true
-        AppState.shared.statusItem.menu = menu
+        AppState.shared.configureStatusItem(title: "⌘", menu: menu)
         
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
         
@@ -104,7 +97,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ aNotification: Notification) {}
     
     func applicationDidResignActive(_ notification: Notification) {
-        AppState.shared.activeKeyTextField?.blur()
+        AppState.shared.blurFocusedKeyField()
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         preferenceWindowController.showAndActivate(self)
@@ -148,4 +141,3 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApplication.shared.terminate(self)
     }
 }
-

@@ -21,9 +21,71 @@ class KeyEvent: NSObject {
     var tapReenableCount = 0
     let maxTapReenableCount = 10
     var lastTapDisableTime: Date?
+    let stateLock = NSLock()
 
     override init() {
         super.init()
+    }
+
+    func setKeyCode(_ keyCode: CGKeyCode?) {
+        stateLock.lock()
+        self.keyCode = keyCode
+        stateLock.unlock()
+    }
+
+    func currentKeyCode() -> CGKeyCode? {
+        stateLock.lock()
+        let keyCode = self.keyCode
+        stateLock.unlock()
+        return keyCode
+    }
+
+    func setIsExclusionApp(_ isExclusionApp: Bool) {
+        stateLock.lock()
+        self.isExclusionApp = isExclusionApp
+        stateLock.unlock()
+    }
+
+    func currentIsExclusionApp() -> Bool {
+        stateLock.lock()
+        let isExclusionApp = self.isExclusionApp
+        stateLock.unlock()
+        return isExclusionApp
+    }
+
+    func updateTapReenableState(for eventTap: CFMachPort) {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+
+        let now = Date()
+        if let lastTime = lastTapDisableTime, now.timeIntervalSince(lastTime) > 60 {
+            tapReenableCount = 0
+        }
+        lastTapDisableTime = now
+
+        if tapReenableCount < maxTapReenableCount {
+            tapReenableCount += 1
+            print("Event tap disabled, re-enabling... (attempt \(tapReenableCount)/\(maxTapReenableCount))")
+            CGEvent.tapEnable(tap: eventTap, enable: true)
+        } else {
+            print("Event tap re-enable limit reached (\(maxTapReenableCount) attempts). Stopping retries.")
+        }
+    }
+
+    func activeKeyTextField() -> KeyTextField? {
+        AppState.shared.focusedKeyField()
+    }
+
+    func hasActiveKeyTextField() -> Bool {
+        AppState.shared.focusedKeyField() != nil
+    }
+
+    func updateActiveKeyTextField(_ body: (KeyTextField) -> Void) {
+        AppState.shared.updateFocusedKeyField(body)
+    }
+
+    func shortcutMappings(for keyCode: CGKeyCode) -> [KeyMapping]? {
+        AppState.shared.shortcutMappings(for: keyCode)
     }
     
     func start() {
@@ -176,16 +238,8 @@ class KeyEvent: NSObject {
         }
         
         if let name = app.localizedName, let id = app.bundleIdentifier {
-            isExclusionApp = AppState.shared.exclusionAppsDict[id] != nil
+            setIsExclusionApp(AppState.shared.handleActivatedApp(name: name, id: id, currentBundleId: bundleId))
             
-            if (id != bundleId && !isExclusionApp) {
-                AppState.shared.activeAppsList = AppState.shared.activeAppsList.filter {$0.id != id}
-                AppState.shared.activeAppsList.insert(AppData(name: name, id: id), at: 0)
-                
-                if AppState.shared.activeAppsList.count > 10 {
-                    AppState.shared.activeAppsList.removeLast()
-                }
-            }
         }
     }
     
@@ -209,11 +263,11 @@ class KeyEvent: NSObject {
         ]
         
         NSEvent.addGlobalMonitorForEvents(matching: nsEventMaskList) {(event: NSEvent) -> Void in
-            self.keyCode = nil
+            self.setKeyCode(nil)
         }
         
         NSEvent.addLocalMonitorForEvents(matching: nsEventMaskList) {(event: NSEvent) -> NSEvent? in
-            self.keyCode = nil
+            self.setKeyCode(nil)
             return event
         }
         
@@ -271,26 +325,12 @@ class KeyEvent: NSObject {
     func eventCallback(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             if let eventTap = eventTap {
-                // リトライ制限チェック
-                let now = Date()
-                if let lastTime = lastTapDisableTime, now.timeIntervalSince(lastTime) > 60 {
-                    // 1分以上経過したらカウンターをリセット
-                    tapReenableCount = 0
-                }
-                lastTapDisableTime = now
-                
-                if tapReenableCount < maxTapReenableCount {
-                    tapReenableCount += 1
-                    print("Event tap disabled, re-enabling... (attempt \(tapReenableCount)/\(maxTapReenableCount))")
-                    CGEvent.tapEnable(tap: eventTap, enable: true)
-                } else {
-                    print("Event tap re-enable limit reached (\(maxTapReenableCount) attempts). Stopping retries.")
-                }
+                updateTapReenableState(for: eventTap)
             }
             return Unmanaged.passUnretained(event)
         }
 
-        if isExclusionApp {
+        if currentIsExclusionApp() {
             return Unmanaged.passUnretained(event)
         }
         
@@ -315,7 +355,7 @@ class KeyEvent: NSObject {
             return keyUp(event)
         
         default:
-            self.keyCode = nil
+            setKeyCode(nil)
             
             return Unmanaged.passUnretained(event)
         }
@@ -327,12 +367,14 @@ class KeyEvent: NSObject {
              print(KeyboardShortcut(event).toString())
         #endif
         
-        self.keyCode = nil
+        setKeyCode(nil)
       
-        if let keyTextField = AppState.shared.activeKeyTextField {
-            keyTextField.shortcut = KeyboardShortcut(event)
-            keyTextField.stringValue = keyTextField.shortcut!.toString()
-                        
+        if activeKeyTextField() != nil {
+            updateActiveKeyTextField { keyTextField in
+                keyTextField.shortcut = KeyboardShortcut(event)
+                keyTextField.stringValue = keyTextField.shortcut!.toString()
+            }
+
             return nil
         }
         
@@ -347,7 +389,7 @@ class KeyEvent: NSObject {
     }
     
     func keyUp(_ event: CGEvent) -> Unmanaged<CGEvent>? {
-        self.keyCode = nil
+        setKeyCode(nil)
         
         if hasConvertedEvent(event) {
             if let event = getConvertedEvent(event) {
@@ -364,29 +406,34 @@ class KeyEvent: NSObject {
             print(KeyboardShortcut(event).toString())
         #endif
 
-        self.keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
+        setKeyCode(CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)))
         
-        if let keyTextField = AppState.shared.activeKeyTextField, keyTextField.isAllowModifierOnly {
-            let shortcut = KeyboardShortcut(event)
-            
-            keyTextField.shortcut = shortcut
-            keyTextField.stringValue = shortcut.toString()
+        if activeKeyTextField() != nil {
+            updateActiveKeyTextField { keyTextField in
+                guard keyTextField.isAllowModifierOnly else {
+                    return
+                }
+
+                let shortcut = KeyboardShortcut(event)
+                keyTextField.shortcut = shortcut
+                keyTextField.stringValue = shortcut.toString()
+            }
         }
         
         return Unmanaged.passUnretained(event)
     }
     
     func modifierKeyUp(_ event: CGEvent) -> Unmanaged<CGEvent>? {
-        if AppState.shared.activeKeyTextField != nil {
-            self.keyCode = nil
+        if hasActiveKeyTextField() {
+            setKeyCode(nil)
         }
-        else if self.keyCode == CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) {
+        else if currentKeyCode() == CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) {
             if let convertedEvent = getConvertedEvent(event) {
                 KeyboardShortcut(convertedEvent).postEvent()
             }
         }
         
-        self.keyCode = nil
+        setKeyCode(nil)
         
         return Unmanaged.passUnretained(event)
     }
@@ -396,15 +443,19 @@ class KeyEvent: NSObject {
             print(KeyboardShortcut(keyCode: CGKeyCode(1000 + mediaKeyEvent.keyCode), flags: mediaKeyEvent.flags).toString())
         #endif
         
-        self.keyCode = nil
+        setKeyCode(nil)
         
-        if let keyTextField = AppState.shared.activeKeyTextField {
-            if keyTextField.isAllowModifierOnly {
+        if activeKeyTextField() != nil {
+            updateActiveKeyTextField { keyTextField in
+                guard keyTextField.isAllowModifierOnly else {
+                    return
+                }
+
                 keyTextField.shortcut = KeyboardShortcut(keyCode: CGKeyCode(1000 + mediaKeyEvent.keyCode),
                                                          flags: mediaKeyEvent.flags)
                 keyTextField.stringValue = keyTextField.shortcut!.toString()
             }
-            
+
             return nil
         }
         
@@ -436,7 +487,7 @@ class KeyEvent: NSObject {
         let shortcht = event.type.rawValue == UInt32(NX_SYSDEFINED) ?
             KeyboardShortcut(keyCode: 0, flags: MediaKeyEvent(event)!.flags) : KeyboardShortcut(event)
         
-        if let mappingList = AppState.shared.shortcutList[keyCode ?? shortcht.keyCode] {
+        if let mappingList = shortcutMappings(for: keyCode ?? shortcht.keyCode) {
             for mappings in mappingList {
                 if shortcht.isCover(mappings.input) {
                     hasConvertedEventLog = mappings
@@ -472,7 +523,7 @@ class KeyEvent: NSObject {
             return event
         }
         
-        if let mappingList = AppState.shared.shortcutList[keyCode ?? shortcht.keyCode] {
+        if let mappingList = shortcutMappings(for: keyCode ?? shortcht.keyCode) {
             if let mappings = hasConvertedEventLog,
                 shortcht.isCover(mappings.input) {
                 

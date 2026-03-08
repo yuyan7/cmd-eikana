@@ -22,19 +22,19 @@ class ExclusionAppsController: NSViewController, NSTableViewDataSource, NSTableV
     }
     
     func numberOfRows(in tableView: NSTableView) -> Int {
-        return AppState.shared.exclusionAppsList.count + AppState.shared.activeAppsList.count
+        return AppState.shared.combinedAppCount()
     }
     
     func tableView(_ tableView: NSTableView, objectValueFor tableColumn: NSTableColumn?, row: Int) -> Any? {
         let id = tableColumn!.identifier
         
-        let isExclusion =  row < AppState.shared.exclusionAppsList.count
-        
+        guard let item = AppState.shared.combinedApp(at: row) else { return nil }
+        let isExclusion = item.isExcluded
+        let value = item.app
+
         if id.rawValue == "checkbox" {
             return isExclusion
         }
-        
-        let value = isExclusion ? AppState.shared.exclusionAppsList[row] : AppState.shared.activeAppsList[row - AppState.shared.exclusionAppsList.count]
         
         if id.rawValue == "appName" {
             return value.name
@@ -47,25 +47,15 @@ class ExclusionAppsController: NSViewController, NSTableViewDataSource, NSTableV
     }
     func tableView(_ tableView: NSTableView, setObjectValue object: Any?, for tableColumn: NSTableColumn?, row: Int) {
         let id = tableColumn!.identifier
-        let isExclusion =  row < AppState.shared.exclusionAppsList.count
         
         if id != NSUserInterfaceItemIdentifier(rawValue: "checkbox") {
             return
         }
-        
-        if isExclusion {
-            let item = AppState.shared.exclusionAppsList.remove(at: row)
-            AppState.shared.activeAppsList.insert(item, at: 0)
-        }
-        else {
-            let item = AppState.shared.activeAppsList.remove(at: row - AppState.shared.exclusionAppsList.count)
-            AppState.shared.exclusionAppsList.append(item)
-        }
-        
-        AppState.shared.rebuildExclusionAppsDict()
+
+        AppState.shared.toggleExcludedApp(at: row)
         
         tableReload()
-        AppState.shared.saveExclusionApps()
+        AppState.shared.saveExcludedApps()
     }
     
     @objc func tableReload() {

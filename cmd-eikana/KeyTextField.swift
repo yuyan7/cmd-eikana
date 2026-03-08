@@ -17,7 +17,7 @@ class KeyTextField: NSComboBox {
     override func becomeFirstResponder() -> Bool {
         let became = super.becomeFirstResponder();
         if (became) {
-            AppState.shared.activeKeyTextField = self
+            AppState.shared.setFocusedKeyField(self)
         }
         return became;
     }
@@ -71,12 +71,11 @@ class KeyTextField: NSComboBox {
             
             if let saveAddress = saveAddress {
                 if saveAddress.id == "input" {
-                    AppState.shared.keyMappingList[saveAddress.row].input = shortcut
+                    AppState.shared.setInputShortcut(shortcut, at: saveAddress.row)
                 }
                 else {
-                    AppState.shared.keyMappingList[saveAddress.row].output = shortcut
+                    AppState.shared.setOutputShortcut(shortcut, at: saveAddress.row)
                 }
-                AppState.shared.keyMappingListToShortcutList()
             }
         }
         else {
@@ -85,12 +84,10 @@ class KeyTextField: NSComboBox {
         
         AppState.shared.saveKeyMappings()
         
-        if AppState.shared.activeKeyTextField == self {
-            AppState.shared.activeKeyTextField = nil
-        }
+        AppState.shared.clearFocusedKeyField(ifMatches: self)
     }
     func blur() {
         self.window?.makeFirstResponder(nil)
-        AppState.shared.activeKeyTextField = nil
+        AppState.shared.clearFocusedKeyField(ifMatches: self)
     }
 }

@@ -17,11 +17,11 @@ class ShortcutsController: NSViewController, NSTableViewDataSource, NSTableViewD
     }
     
     override func mouseDown(with event: NSEvent) {
-        AppState.shared.activeKeyTextField?.blur()
+        AppState.shared.blurFocusedKeyField()
     }
     
     func numberOfRows(in tableView: NSTableView) -> Int {
-        return AppState.shared.keyMappingList.count
+        return AppState.shared.keyMappingCount()
     }
     
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
@@ -29,7 +29,8 @@ class ShortcutsController: NSViewController, NSTableViewDataSource, NSTableViewD
 
         if let cell = tableView.makeView(withIdentifier: id, owner: nil) as? NSTableCellView {
             if id.rawValue == "input" || id.rawValue == "output" {
-                let value = id.rawValue == "input" ? AppState.shared.keyMappingList[row].input : AppState.shared.keyMappingList[row].output
+                guard let keyMapping = AppState.shared.keyMapping(at: row) else { return cell }
+                let value = id.rawValue == "input" ? keyMapping.input : keyMapping.output
                 
                 guard let textField = cell.subviews[0] as? KeyTextField else { return cell }
                 
@@ -52,7 +53,7 @@ class ShortcutsController: NSViewController, NSTableViewDataSource, NSTableViewD
         return nil
     }
     @objc func remove(_ sender: MappingMenu) {
-        AppState.shared.activeKeyTextField?.blur()
+        AppState.shared.blurFocusedKeyField()
         
         switch sender.selectedItem!.title {
         case "この項目を削除", "remove":
@@ -68,7 +69,7 @@ class ShortcutsController: NSViewController, NSTableViewDataSource, NSTableViewD
             sender.move(sender.row! + 1)
             break
         case "最下部に移動", "move to bottom":
-            sender.move(AppState.shared.keyMappingList.count - 1)
+            sender.move(AppState.shared.keyMappingCount() - 1)
             break
         default:
             break
@@ -79,7 +80,6 @@ class ShortcutsController: NSViewController, NSTableViewDataSource, NSTableViewD
     
     func tableReload() {
         tableView.reloadData()
-        AppState.shared.keyMappingListToShortcutList()
         AppState.shared.saveKeyMappings()
     }
     
@@ -88,7 +88,7 @@ class ShortcutsController: NSViewController, NSTableViewDataSource, NSTableViewD
     }
     
     @IBAction func addRow(_ sender: AnyObject) {
-        AppState.shared.keyMappingList.append(KeyMapping())
+        AppState.shared.addKeyMapping(KeyMapping())
         tableReload()
     }
 }
