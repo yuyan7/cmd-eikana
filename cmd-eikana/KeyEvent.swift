@@ -17,6 +17,10 @@ class KeyEvent: NSObject {
     var permissionTimer: Timer?
     var hasShownPermissionAlert = false
     var isWatching = false
+    var runLoopSource: CFRunLoopSource?
+    var tapReenableCount = 0
+    let maxTapReenableCount = 10
+    var lastTapDisableTime: Date?
 
     override init() {
         super.init()
@@ -59,7 +63,7 @@ class KeyEvent: NSObject {
         }
 
         if prompt {
-            return CGRequestListenEventAccess()
+            _ = CGRequestListenEventAccess()
         }
 
         return false
@@ -71,7 +75,7 @@ class KeyEvent: NSObject {
         }
 
         if prompt {
-            return CGRequestPostEventAccess()
+            _ = CGRequestPostEventAccess()
         }
 
         return false
@@ -254,9 +258,10 @@ class KeyEvent: NSObject {
 
         self.eventTap = eventTap
         
-        let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
+        runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
         
-        DispatchQueue.global(qos: .userInitiated).async {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self, let runLoopSource = self.runLoopSource else { return }
             CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
             CGEvent.tapEnable(tap: eventTap, enable: true)
             CFRunLoopRun()
@@ -266,7 +271,21 @@ class KeyEvent: NSObject {
     func eventCallback(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             if let eventTap = eventTap {
-                CGEvent.tapEnable(tap: eventTap, enable: true)
+                // リトライ制限チェック
+                let now = Date()
+                if let lastTime = lastTapDisableTime, now.timeIntervalSince(lastTime) > 60 {
+                    // 1分以上経過したらカウンターをリセット
+                    tapReenableCount = 0
+                }
+                lastTapDisableTime = now
+                
+                if tapReenableCount < maxTapReenableCount {
+                    tapReenableCount += 1
+                    print("Event tap disabled, re-enabling... (attempt \(tapReenableCount)/\(maxTapReenableCount))")
+                    CGEvent.tapEnable(tap: eventTap, enable: true)
+                } else {
+                    print("Event tap re-enable limit reached (\(maxTapReenableCount) attempts). Stopping retries.")
+                }
             }
             return Unmanaged.passUnretained(event)
         }
