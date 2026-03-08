@@ -8,54 +8,43 @@
 
 import Cocoa
 
-class KeyEvent: NSObject {
-    var keyCode: CGKeyCode? = nil
-    var isExclusionApp = false
-    let bundleId: String = Bundle.main.infoDictionary?["CFBundleIdentifier"] as? String ?? ""
-    var hasConvertedEventLog: KeyMapping? = nil
-    var eventTap: CFMachPort?
-    var permissionTimer: Timer?
-    var hasShownPermissionAlert = false
-    var isWatching = false
-    var runLoopSource: CFRunLoopSource?
-    var tapReenableCount = 0
-    let maxTapReenableCount = 10
-    var lastTapDisableTime: Date?
-    let stateLock = NSLock()
+final class KeyEventState {
+    private let lock = NSLock()
+    private var lastModifierKeyCode: CGKeyCode?
+    private var excludedApp = false
+    private var tapReenableCount = 0
+    private var lastTapDisableTime: Date?
+    private let maxTapReenableCount = 10
 
-    override init() {
-        super.init()
+    func setLastModifierKeyCode(_ keyCode: CGKeyCode?) {
+        lock.lock()
+        lastModifierKeyCode = keyCode
+        lock.unlock()
     }
 
-    func setKeyCode(_ keyCode: CGKeyCode?) {
-        stateLock.lock()
-        self.keyCode = keyCode
-        stateLock.unlock()
-    }
-
-    func currentKeyCode() -> CGKeyCode? {
-        stateLock.lock()
-        let keyCode = self.keyCode
-        stateLock.unlock()
+    func currentLastModifierKeyCode() -> CGKeyCode? {
+        lock.lock()
+        let keyCode = lastModifierKeyCode
+        lock.unlock()
         return keyCode
     }
 
-    func setIsExclusionApp(_ isExclusionApp: Bool) {
-        stateLock.lock()
-        self.isExclusionApp = isExclusionApp
-        stateLock.unlock()
+    func setExcludedApp(_ isExcludedApp: Bool) {
+        lock.lock()
+        excludedApp = isExcludedApp
+        lock.unlock()
     }
 
-    func currentIsExclusionApp() -> Bool {
-        stateLock.lock()
-        let isExclusionApp = self.isExclusionApp
-        stateLock.unlock()
-        return isExclusionApp
+    func currentIsExcludedApp() -> Bool {
+        lock.lock()
+        let isExcludedApp = excludedApp
+        lock.unlock()
+        return isExcludedApp
     }
 
-    func updateTapReenableState(for eventTap: CFMachPort) {
-        stateLock.lock()
-        defer { stateLock.unlock() }
+    func reenableEventTapIfNeeded(_ eventTap: CFMachPort) {
+        lock.lock()
+        defer { lock.unlock() }
 
         let now = Date()
         if let lastTime = lastTapDisableTime, now.timeIntervalSince(lastTime) > 60 {
@@ -65,10 +54,61 @@ class KeyEvent: NSObject {
 
         if tapReenableCount < maxTapReenableCount {
             tapReenableCount += 1
-            print("Event tap disabled, re-enabling... (attempt \(tapReenableCount)/\(maxTapReenableCount))")
             CGEvent.tapEnable(tap: eventTap, enable: true)
         } else {
-            print("Event tap re-enable limit reached (\(maxTapReenableCount) attempts). Stopping retries.")
+            return
+        }
+    }
+
+    func currentTapReenableAttempt() -> Int {
+        lock.lock()
+        let attempt = tapReenableCount
+        lock.unlock()
+        return attempt
+    }
+
+    func maxTapReenableAttemptCount() -> Int {
+        maxTapReenableCount
+    }
+}
+
+class KeyEvent: NSObject {
+    let bundleId: String = Bundle.main.infoDictionary?["CFBundleIdentifier"] as? String ?? ""
+    var hasConvertedEventLog: KeyMapping? = nil
+    var eventTap: CFMachPort?
+    var permissionTimer: Timer?
+    var hasShownPermissionAlert = false
+    var isWatching = false
+    var runLoopSource: CFRunLoopSource?
+    let state = KeyEventState()
+
+    override init() {
+        super.init()
+    }
+
+    func logEventTap(_ message: String) {
+        print("[KeyEvent] \(message)")
+    }
+
+    func logEventTapDisable(_ type: CGEventType) {
+        let reason: String
+
+        switch type {
+        case .tapDisabledByTimeout:
+            reason = "timeout"
+        case .tapDisabledByUserInput:
+            reason = "user-input"
+        default:
+            reason = "unknown"
+        }
+
+        let attempt = state.currentTapReenableAttempt()
+        let maxAttempt = state.maxTapReenableAttemptCount()
+
+        if attempt >= maxAttempt {
+            logEventTap("event tap disabled (reason=\(reason)); retry limit reached (\(attempt)/\(maxAttempt))")
+        } else {
+            logEventTap("event tap disabled (reason=\(reason)); re-enabling (attempt \(attempt)/\(maxAttempt))")
         }
     }
 
@@ -238,7 +278,7 @@ class KeyEvent: NSObject {
         }
         
         if let name = app.localizedName, let id = app.bundleIdentifier {
-            setIsExclusionApp(AppState.shared.handleActivatedApp(name: name, id: id, currentBundleId: bundleId))
+            state.setExcludedApp(AppState.shared.handleActivatedApp(name: name, id: id, currentBundleId: bundleId))
             
         }
     }
@@ -263,11 +303,11 @@ class KeyEvent: NSObject {
         ]
         
         NSEvent.addGlobalMonitorForEvents(matching: nsEventMaskList) {(event: NSEvent) -> Void in
-            self.setKeyCode(nil)
+            self.state.setLastModifierKeyCode(nil)
         }
         
         NSEvent.addLocalMonitorForEvents(matching: nsEventMaskList) {(event: NSEvent) -> NSEvent? in
-            self.setKeyCode(nil)
+            self.state.setLastModifierKeyCode(nil)
             return event
         }
         
@@ -306,7 +346,7 @@ class KeyEvent: NSObject {
             },
             userInfo: observer
             ) else {
-                print("failed to create event tap")
+                logEventTap("failed to create event tap")
                 exit(1)
         }
 
@@ -325,12 +365,13 @@ class KeyEvent: NSObject {
     func eventCallback(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             if let eventTap = eventTap {
-                updateTapReenableState(for: eventTap)
+                state.reenableEventTapIfNeeded(eventTap)
+                logEventTapDisable(type)
             }
             return Unmanaged.passUnretained(event)
         }
 
-        if currentIsExclusionApp() {
+        if state.currentIsExcludedApp() {
             return Unmanaged.passUnretained(event)
         }
         
@@ -355,7 +396,7 @@ class KeyEvent: NSObject {
             return keyUp(event)
         
         default:
-            setKeyCode(nil)
+            state.setLastModifierKeyCode(nil)
             
             return Unmanaged.passUnretained(event)
         }
@@ -367,7 +408,7 @@ class KeyEvent: NSObject {
              print(KeyboardShortcut(event).toString())
         #endif
         
-        setKeyCode(nil)
+        state.setLastModifierKeyCode(nil)
       
         if activeKeyTextField() != nil {
             updateActiveKeyTextField { keyTextField in
@@ -389,7 +430,7 @@ class KeyEvent: NSObject {
     }
     
     func keyUp(_ event: CGEvent) -> Unmanaged<CGEvent>? {
-        setKeyCode(nil)
+        state.setLastModifierKeyCode(nil)
         
         if hasConvertedEvent(event) {
             if let event = getConvertedEvent(event) {
@@ -406,7 +447,7 @@ class KeyEvent: NSObject {
             print(KeyboardShortcut(event).toString())
         #endif
 
-        setKeyCode(CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)))
+        state.setLastModifierKeyCode(CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)))
         
         if activeKeyTextField() != nil {
             updateActiveKeyTextField { keyTextField in
@@ -425,15 +466,15 @@ class KeyEvent: NSObject {
     
     func modifierKeyUp(_ event: CGEvent) -> Unmanaged<CGEvent>? {
         if hasActiveKeyTextField() {
-            setKeyCode(nil)
+            state.setLastModifierKeyCode(nil)
         }
-        else if currentKeyCode() == CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) {
+        else if state.currentLastModifierKeyCode() == CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) {
             if let convertedEvent = getConvertedEvent(event) {
                 KeyboardShortcut(convertedEvent).postEvent()
             }
         }
         
-        setKeyCode(nil)
+        state.setLastModifierKeyCode(nil)
         
         return Unmanaged.passUnretained(event)
     }
@@ -443,7 +484,7 @@ class KeyEvent: NSObject {
             print(KeyboardShortcut(keyCode: CGKeyCode(1000 + mediaKeyEvent.keyCode), flags: mediaKeyEvent.flags).toString())
         #endif
         
-        setKeyCode(nil)
+        state.setLastModifierKeyCode(nil)
         
         if activeKeyTextField() != nil {
             updateActiveKeyTextField { keyTextField in
@@ -461,9 +502,10 @@ class KeyEvent: NSObject {
         
         if hasConvertedEvent(mediaKeyEvent.event, keyCode: CGKeyCode(1000 + mediaKeyEvent.keyCode)) {
             if let event = getConvertedEvent(mediaKeyEvent.event, keyCode: CGKeyCode(1000 + mediaKeyEvent.keyCode)) {
-                print(KeyboardShortcut(event).toString())
-                
-                print(event.type == CGEventType.keyDown)
+                #if DEBUG
+                    print(KeyboardShortcut(event).toString())
+                    print(event.type == CGEventType.keyDown)
+                #endif
                 event.post(tap: CGEventTapLocation.cghidEventTap)
             }
             return nil
