@@ -8,19 +8,124 @@
 
 import Cocoa
 
-var activeAppsList: [AppData] = []
-var exclusionAppsList: [AppData] = []
+final class KeyEventState {
+    private let lock = NSLock()
+    private var lastModifierKeyCode: CGKeyCode?
+    private var excludedApp = false
+    private var tapReenableCount = 0
+    private var lastTapDisableTime: Date?
+    private let maxTapReenableCount = 10
 
-var exclusionAppsDict: [String: String] = [:]
+    func setLastModifierKeyCode(_ keyCode: CGKeyCode?) {
+        lock.lock()
+        lastModifierKeyCode = keyCode
+        lock.unlock()
+    }
+
+    func currentLastModifierKeyCode() -> CGKeyCode? {
+        lock.lock()
+        let keyCode = lastModifierKeyCode
+        lock.unlock()
+        return keyCode
+    }
+
+    func setExcludedApp(_ isExcludedApp: Bool) {
+        lock.lock()
+        excludedApp = isExcludedApp
+        lock.unlock()
+    }
+
+    func currentIsExcludedApp() -> Bool {
+        lock.lock()
+        let isExcludedApp = excludedApp
+        lock.unlock()
+        return isExcludedApp
+    }
+
+    func reenableEventTapIfNeeded(_ eventTap: CFMachPort) {
+        lock.lock()
+        defer { lock.unlock() }
+
+        let now = Date()
+        if let lastTime = lastTapDisableTime, now.timeIntervalSince(lastTime) > 60 {
+            tapReenableCount = 0
+        }
+        lastTapDisableTime = now
+
+        if tapReenableCount < maxTapReenableCount {
+            tapReenableCount += 1
+            CGEvent.tapEnable(tap: eventTap, enable: true)
+        } else {
+            return
+        }
+    }
+
+    func currentTapReenableAttempt() -> Int {
+        lock.lock()
+        let attempt = tapReenableCount
+        lock.unlock()
+        return attempt
+    }
+
+    func maxTapReenableAttemptCount() -> Int {
+        maxTapReenableCount
+    }
+}
 
 class KeyEvent: NSObject {
-    var keyCode: CGKeyCode? = nil
-    var isExclusionApp = false
-    let bundleId = Bundle.main.infoDictionary?["CFBundleIdentifier"] as! String
+    let bundleId: String = Bundle.main.infoDictionary?["CFBundleIdentifier"] as? String ?? ""
     var hasConvertedEventLog: KeyMapping? = nil
+    var eventTap: CFMachPort?
+    var permissionTimer: Timer?
+    var hasShownPermissionAlert = false
+    var isWatching = false
+    var runLoopSource: CFRunLoopSource?
+    let state = KeyEventState()
 
     override init() {
         super.init()
+    }
+
+    func logEventTap(_ message: String) {
+        print("[KeyEvent] \(message)")
+    }
+
+    func logEventTapDisable(_ type: CGEventType) {
+        let reason: String
+
+        switch type {
+        case .tapDisabledByTimeout:
+            reason = "timeout"
+        case .tapDisabledByUserInput:
+            reason = "user-input"
+        default:
+            reason = "unknown"
+        }
+
+        let attempt = state.currentTapReenableAttempt()
+        let maxAttempt = state.maxTapReenableAttemptCount()
+
+        if attempt >= maxAttempt {
+            logEventTap("event tap disabled (reason=\(reason)); retry limit reached (\(attempt)/\(maxAttempt))")
+        } else {
+            logEventTap("event tap disabled (reason=\(reason)); re-enabling (attempt \(attempt)/\(maxAttempt))")
+        }
+    }
+
+    func activeKeyTextField() -> KeyTextField? {
+        AppState.shared.focusedKeyField()
+    }
+
+    func hasActiveKeyTextField() -> Bool {
+        AppState.shared.focusedKeyField() != nil
+    }
+
+    func updateActiveKeyTextField(_ body: (KeyTextField) -> Void) {
+        AppState.shared.updateFocusedKeyField(body)
+    }
+
+    func shortcutMappings(for keyCode: CGKeyCode) -> [KeyMapping]? {
+        AppState.shared.shortcutMappings(for: keyCode)
     }
     
     func start() {
@@ -28,49 +133,163 @@ class KeyEvent: NSObject {
                                                             selector: #selector(KeyEvent.setActiveApp(_:)),
                                                             name: NSWorkspace.didActivateApplicationNotification,
                                                             object:nil)
-        
-        let checkOptionPrompt = kAXTrustedCheckOptionPrompt.takeRetainedValue() as NSString
-        let options: CFDictionary = [checkOptionPrompt: true] as NSDictionary
-        
-        if !AXIsProcessTrustedWithOptions(options) {
-            // アクセシビリティに設定されていない場合、設定されるまでループで待つ
-            Timer.scheduledTimer(timeInterval: 1.0,
-                                 target: self,
-                                 selector: #selector(KeyEvent.watchAXIsProcess(_:)),
-                                 userInfo: nil,
-                                 repeats: true)
-        }
-        else {
-            self.watch()
+
+        if ensurePermissions(prompt: true) {
+            watch()
+        } else {
+            startPermissionTimer()
         }
     }
-    
-    @objc func watchAXIsProcess(_ timer: Timer) {
-        if AXIsProcessTrusted() {
-            timer.invalidate()
-            
-            self.watch()
+
+    func ensurePermissions(prompt: Bool) -> Bool {
+        let hasInputMonitoring = requestInputMonitoringAccess(prompt: prompt)
+        let hasPostEventAccess = requestPostEventAccess(prompt: prompt)
+        let hasAccessibilityAccess = requestAccessibilityAccess(prompt: prompt)
+
+        if !hasInputMonitoring || !hasPostEventAccess || !hasAccessibilityAccess {
+            if prompt {
+                showPermissionAlert(inputMonitoring: hasInputMonitoring,
+                                    postEventAccess: hasPostEventAccess,
+                                    accessibility: hasAccessibilityAccess)
+            }
+            return false
         }
+
+        hasShownPermissionAlert = false
+        return true
+    }
+
+    func requestInputMonitoringAccess(prompt: Bool) -> Bool {
+        if CGPreflightListenEventAccess() {
+            return true
+        }
+
+        if prompt {
+            _ = CGRequestListenEventAccess()
+        }
+
+        return false
+    }
+
+    func requestPostEventAccess(prompt: Bool) -> Bool {
+        if CGPreflightPostEventAccess() {
+            return true
+        }
+
+        if prompt {
+            _ = CGRequestPostEventAccess()
+        }
+
+        return false
+    }
+
+    func requestAccessibilityAccess(prompt: Bool) -> Bool {
+        if prompt {
+            let checkOptionPrompt = kAXTrustedCheckOptionPrompt.takeRetainedValue() as NSString
+            let options: CFDictionary = [checkOptionPrompt: true] as NSDictionary
+            return AXIsProcessTrustedWithOptions(options)
+        }
+
+        return AXIsProcessTrusted()
+    }
+
+    func startPermissionTimer() {
+        if permissionTimer != nil {
+            return
+        }
+
+        permissionTimer = Timer.scheduledTimer(timeInterval: 1.0,
+                                               target: self,
+                                               selector: #selector(KeyEvent.watchPermissions(_:)),
+                                               userInfo: nil,
+                                               repeats: true)
+    }
+
+    @objc func watchPermissions(_ timer: Timer) {
+        if ensurePermissions(prompt: false) {
+            timer.invalidate()
+            permissionTimer = nil
+            watch()
+        }
+    }
+
+    func showPermissionAlert(inputMonitoring: Bool,
+                             postEventAccess: Bool,
+                             accessibility: Bool) {
+        if hasShownPermissionAlert {
+            return
+        }
+
+        hasShownPermissionAlert = true
+
+        var missingPermissions: [String] = []
+
+        if !inputMonitoring {
+            missingPermissions.append("- 入力監視を許可してください")
+        }
+
+        if !postEventAccess {
+            missingPermissions.append("- キーボード操作を送出するための監視権限を許可してください")
+        }
+
+        if !accessibility {
+            missingPermissions.append("- アクセシビリティを許可してください")
+        }
+
+        let alert = NSAlert()
+        alert.messageText = "⌘英かなの権限設定が必要です"
+        alert.informativeText = "⌘英かなを使うには次の権限が必要です。\n\n"
+            + missingPermissions.joined(separator: "\n")
+            + "\n\nシステム設定 > プライバシーとセキュリティ で許可したあと、自動で再開します。"
+        alert.addButton(withTitle: "システム設定を開く")
+        alert.addButton(withTitle: "あとで")
+
+        if alert.runModal() == .alertFirstButtonReturn {
+            openPrivacySettings(inputMonitoring: inputMonitoring,
+                                postEventAccess: postEventAccess,
+                                accessibility: accessibility)
+        }
+    }
+
+    func openPrivacySettings(inputMonitoring: Bool,
+                             postEventAccess: Bool,
+                             accessibility: Bool) {
+        let privacyPaneURL: String
+
+        if !inputMonitoring {
+            privacyPaneURL = "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
+        } else if !postEventAccess {
+            privacyPaneURL = "x-apple.systempreferences:com.apple.preference.security?Privacy_PostEvent"
+        } else {
+            privacyPaneURL = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+        }
+
+        if let url = URL(string: privacyPaneURL), NSWorkspace.shared.open(url) {
+            return
+        }
+
+        NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app"))
     }
     
     @objc func setActiveApp(_ notification: NSNotification) {
-        let app = notification.userInfo!["NSWorkspaceApplicationKey"] as! NSRunningApplication
+        guard let userInfo = notification.userInfo,
+              let app = userInfo["NSWorkspaceApplicationKey"] as? NSRunningApplication else {
+            return
+        }
         
         if let name = app.localizedName, let id = app.bundleIdentifier {
-            isExclusionApp = exclusionAppsDict[id] != nil
+            state.setExcludedApp(AppState.shared.handleActivatedApp(name: name, id: id, currentBundleId: bundleId))
             
-            if (id != bundleId && !isExclusionApp) {
-                activeAppsList = activeAppsList.filter {$0.id != id}
-                activeAppsList.insert(AppData(name: name, id: id), at: 0)
-                
-                if activeAppsList.count > 10 {
-                    activeAppsList.removeLast()
-                }
-            }
         }
     }
     
     func watch() {
+        if isWatching {
+            return
+        }
+
+        isWatching = true
+
         // マウスのドラッグバグ回避のため、NSEventとCGEventを併用
         // CGEventのみでやる方法を捜索中
         let nsEventMaskList: NSEvent.EventTypeMask = [
@@ -84,11 +303,11 @@ class KeyEvent: NSObject {
         ]
         
         NSEvent.addGlobalMonitorForEvents(matching: nsEventMaskList) {(event: NSEvent) -> Void in
-            self.keyCode = nil
+            self.state.setLastModifierKeyCode(nil)
         }
         
         NSEvent.addLocalMonitorForEvents(matching: nsEventMaskList) {(event: NSEvent) -> NSEvent? in
-            self.keyCode = nil
+            self.state.setLastModifierKeyCode(nil)
             return event
         }
         
@@ -127,19 +346,32 @@ class KeyEvent: NSObject {
             },
             userInfo: observer
             ) else {
-                print("failed to create event tap")
+                logEventTap("failed to create event tap")
                 exit(1)
         }
+
+        self.eventTap = eventTap
         
-        let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
+        runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
         
-        CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
-        CGEvent.tapEnable(tap: eventTap, enable: true)
-        CFRunLoopRun()
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self, let runLoopSource = self.runLoopSource else { return }
+            CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
+            CGEvent.tapEnable(tap: eventTap, enable: true)
+            CFRunLoopRun()
+        }
     }
     
     func eventCallback(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
-        if isExclusionApp {
+        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+            if let eventTap = eventTap {
+                state.reenableEventTapIfNeeded(eventTap)
+                logEventTapDisable(type)
+            }
+            return Unmanaged.passUnretained(event)
+        }
+
+        if state.currentIsExcludedApp() {
             return Unmanaged.passUnretained(event)
         }
         
@@ -164,7 +396,7 @@ class KeyEvent: NSObject {
             return keyUp(event)
         
         default:
-            self.keyCode = nil
+            state.setLastModifierKeyCode(nil)
             
             return Unmanaged.passUnretained(event)
         }
@@ -176,12 +408,14 @@ class KeyEvent: NSObject {
              print(KeyboardShortcut(event).toString())
         #endif
         
-        self.keyCode = nil
+        state.setLastModifierKeyCode(nil)
       
-        if let keyTextField = activeKeyTextField {
-            keyTextField.shortcut = KeyboardShortcut(event)
-            keyTextField.stringValue = keyTextField.shortcut!.toString()
-                        
+        if activeKeyTextField() != nil {
+            updateActiveKeyTextField { keyTextField in
+                keyTextField.shortcut = KeyboardShortcut(event)
+                keyTextField.stringValue = keyTextField.shortcut!.toString()
+            }
+
             return nil
         }
         
@@ -196,7 +430,7 @@ class KeyEvent: NSObject {
     }
     
     func keyUp(_ event: CGEvent) -> Unmanaged<CGEvent>? {
-        self.keyCode = nil
+        state.setLastModifierKeyCode(nil)
         
         if hasConvertedEvent(event) {
             if let event = getConvertedEvent(event) {
@@ -213,29 +447,34 @@ class KeyEvent: NSObject {
             print(KeyboardShortcut(event).toString())
         #endif
 
-        self.keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
+        state.setLastModifierKeyCode(CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)))
         
-        if let keyTextField = activeKeyTextField, keyTextField.isAllowModifierOnly {
-            let shortcut = KeyboardShortcut(event)
-            
-            keyTextField.shortcut = shortcut
-            keyTextField.stringValue = shortcut.toString()
+        if activeKeyTextField() != nil {
+            updateActiveKeyTextField { keyTextField in
+                guard keyTextField.isAllowModifierOnly else {
+                    return
+                }
+
+                let shortcut = KeyboardShortcut(event)
+                keyTextField.shortcut = shortcut
+                keyTextField.stringValue = shortcut.toString()
+            }
         }
         
         return Unmanaged.passUnretained(event)
     }
     
     func modifierKeyUp(_ event: CGEvent) -> Unmanaged<CGEvent>? {
-        if activeKeyTextField != nil {
-            self.keyCode = nil
+        if hasActiveKeyTextField() {
+            state.setLastModifierKeyCode(nil)
         }
-        else if self.keyCode == CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) {
+        else if state.currentLastModifierKeyCode() == CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) {
             if let convertedEvent = getConvertedEvent(event) {
                 KeyboardShortcut(convertedEvent).postEvent()
             }
         }
         
-        self.keyCode = nil
+        state.setLastModifierKeyCode(nil)
         
         return Unmanaged.passUnretained(event)
     }
@@ -245,23 +484,28 @@ class KeyEvent: NSObject {
             print(KeyboardShortcut(keyCode: CGKeyCode(1000 + mediaKeyEvent.keyCode), flags: mediaKeyEvent.flags).toString())
         #endif
         
-        self.keyCode = nil
+        state.setLastModifierKeyCode(nil)
         
-        if let keyTextField = activeKeyTextField {
-            if keyTextField.isAllowModifierOnly {
+        if activeKeyTextField() != nil {
+            updateActiveKeyTextField { keyTextField in
+                guard keyTextField.isAllowModifierOnly else {
+                    return
+                }
+
                 keyTextField.shortcut = KeyboardShortcut(keyCode: CGKeyCode(1000 + mediaKeyEvent.keyCode),
                                                          flags: mediaKeyEvent.flags)
                 keyTextField.stringValue = keyTextField.shortcut!.toString()
             }
-            
+
             return nil
         }
         
         if hasConvertedEvent(mediaKeyEvent.event, keyCode: CGKeyCode(1000 + mediaKeyEvent.keyCode)) {
             if let event = getConvertedEvent(mediaKeyEvent.event, keyCode: CGKeyCode(1000 + mediaKeyEvent.keyCode)) {
-                print(KeyboardShortcut(event).toString())
-                
-                print(event.type == CGEventType.keyDown)
+                #if DEBUG
+                    print(KeyboardShortcut(event).toString())
+                    print(event.type == CGEventType.keyDown)
+                #endif
                 event.post(tap: CGEventTapLocation.cghidEventTap)
             }
             return nil
@@ -285,7 +529,7 @@ class KeyEvent: NSObject {
         let shortcht = event.type.rawValue == UInt32(NX_SYSDEFINED) ?
             KeyboardShortcut(keyCode: 0, flags: MediaKeyEvent(event)!.flags) : KeyboardShortcut(event)
         
-        if let mappingList = shortcutList[keyCode ?? shortcht.keyCode] {
+        if let mappingList = shortcutMappings(for: keyCode ?? shortcht.keyCode) {
             for mappings in mappingList {
                 if shortcht.isCover(mappings.input) {
                     hasConvertedEventLog = mappings
@@ -321,7 +565,7 @@ class KeyEvent: NSObject {
             return event
         }
         
-        if let mappingList = shortcutList[keyCode ?? shortcht.keyCode] {
+        if let mappingList = shortcutMappings(for: keyCode ?? shortcht.keyCode) {
             if let mappings = hasConvertedEventLog,
                 shortcht.isCover(mappings.input) {
                 

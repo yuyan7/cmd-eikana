@@ -92,27 +92,27 @@ class KeyboardShortcut: NSObject {
     }
     
     func isCommandDown() -> Bool {
-        return self.flags.rawValue & CGEventFlags.maskCommand.rawValue != 0 && keyCode != 54 && keyCode != 55
+        return self.flags.rawValue & CGEventFlags.maskCommand.rawValue != 0 && keyCode != SpecialKeyCode.commandRight.rawValue && keyCode != SpecialKeyCode.commandLeft.rawValue
     }
     
     func isShiftDown() -> Bool {
-        return self.flags.rawValue & CGEventFlags.maskShift.rawValue != 0 && keyCode != 56 && keyCode != 60
+        return self.flags.rawValue & CGEventFlags.maskShift.rawValue != 0 && keyCode != SpecialKeyCode.shiftLeft.rawValue && keyCode != SpecialKeyCode.shiftRight.rawValue
     }
     
     func isControlDown() -> Bool {
-        return self.flags.rawValue & CGEventFlags.maskControl.rawValue != 0 && keyCode != 59 && keyCode != 62
+        return self.flags.rawValue & CGEventFlags.maskControl.rawValue != 0 && keyCode != SpecialKeyCode.controlLeft.rawValue && keyCode != SpecialKeyCode.controlRight.rawValue
     }
     
     func isAlternateDown() -> Bool {
-        return self.flags.rawValue & CGEventFlags.maskAlternate.rawValue != 0 && keyCode != 58 && keyCode != 61
+        return self.flags.rawValue & CGEventFlags.maskAlternate.rawValue != 0 && keyCode != SpecialKeyCode.optionLeft.rawValue && keyCode != SpecialKeyCode.optionRight.rawValue
     }
     
     func isSecondaryFnDown() -> Bool {
-        return self.flags.rawValue & CGEventFlags.maskSecondaryFn.rawValue != 0 && keyCode != 63
+        return self.flags.rawValue & CGEventFlags.maskSecondaryFn.rawValue != 0 && keyCode != SpecialKeyCode.function.rawValue
     }
     
     func isCapslockDown() -> Bool {
-        return self.flags.rawValue & CGEventFlags.maskAlphaShift.rawValue != 0 && keyCode != 57
+        return self.flags.rawValue & CGEventFlags.maskAlphaShift.rawValue != 0 && keyCode != SpecialKeyCode.capsLock.rawValue
     }
     
     func postEvent() -> Void {
@@ -270,28 +270,28 @@ let keyCodeDictionary: Dictionary<CGKeyCode, String> = [
     145: "BRIGHTNESS_DOWN",
     160: "Expose_All",
     
-    // media key (bata)
-    999: "Disable",
-    1000 + UInt16(NX_KEYTYPE_SOUND_UP): "Sound_up",
-    1000 + UInt16(NX_KEYTYPE_SOUND_DOWN): "Sound_down",
-    1000 + UInt16(NX_KEYTYPE_BRIGHTNESS_UP): "Brightness_up",
-    1000 + UInt16(NX_KEYTYPE_BRIGHTNESS_DOWN): "Brightness_down",
-    1000 + UInt16(NX_KEYTYPE_CAPS_LOCK): "CapsLock",
-    1000 + UInt16(NX_KEYTYPE_HELP): "HELP",
-    1000 + UInt16(NX_POWER_KEY): "PowerKey",
-    1000 + UInt16(NX_KEYTYPE_MUTE): "mute",
-    1000 + UInt16(NX_KEYTYPE_NUM_LOCK): "NUM_LOCK",
-    1000 + UInt16(NX_KEYTYPE_CONTRAST_UP): "CONTRAST_UP",
-    1000 + UInt16(NX_KEYTYPE_CONTRAST_DOWN): "CONTRAST_DOWN",
-    1000 + UInt16(NX_KEYTYPE_LAUNCH_PANEL): "LAUNCH_PANEL",
-    1000 + UInt16(NX_KEYTYPE_EJECT): "EJECT",
-    1000 + UInt16(NX_KEYTYPE_VIDMIRROR): "VIDMIRROR",
-    1000 + UInt16(NX_KEYTYPE_PLAY): "Play",
-    1000 + UInt16(NX_KEYTYPE_NEXT): "NEXT",
-    1000 + UInt16(NX_KEYTYPE_PREVIOUS): "PREVIOUS",
-    1000 + UInt16(NX_KEYTYPE_FAST): "Fast",
-    1000 + UInt16(NX_KEYTYPE_REWIND): "Rewind",
-    1000 + UInt16(NX_KEYTYPE_ILLUMINATION_UP): "Illumination_up",
-    1000 + UInt16(NX_KEYTYPE_ILLUMINATION_DOWN): "Illumination_down",
-    1000 + UInt16(NX_KEYTYPE_ILLUMINATION_TOGGLE): "ILLUMINATION_TOGGLE"
+    // media key (beta)
+    SpecialKeyCode.disabled.rawValue: "Disable",
+    SpecialKeyCode.mediaKeyOffset + UInt16(NX_KEYTYPE_SOUND_UP): "Sound_up",
+    SpecialKeyCode.mediaKeyOffset + UInt16(NX_KEYTYPE_SOUND_DOWN): "Sound_down",
+    SpecialKeyCode.mediaKeyOffset + UInt16(NX_KEYTYPE_BRIGHTNESS_UP): "Brightness_up",
+    SpecialKeyCode.mediaKeyOffset + UInt16(NX_KEYTYPE_BRIGHTNESS_DOWN): "Brightness_down",
+    SpecialKeyCode.mediaKeyOffset + UInt16(NX_KEYTYPE_CAPS_LOCK): "CapsLock",
+    SpecialKeyCode.mediaKeyOffset + UInt16(NX_KEYTYPE_HELP): "HELP",
+    SpecialKeyCode.mediaKeyOffset + UInt16(NX_POWER_KEY): "PowerKey",
+    SpecialKeyCode.mediaKeyOffset + UInt16(NX_KEYTYPE_MUTE): "mute",
+    SpecialKeyCode.mediaKeyOffset + UInt16(NX_KEYTYPE_NUM_LOCK): "NUM_LOCK",
+    SpecialKeyCode.mediaKeyOffset + UInt16(NX_KEYTYPE_CONTRAST_UP): "CONTRAST_UP",
+    SpecialKeyCode.mediaKeyOffset + UInt16(NX_KEYTYPE_CONTRAST_DOWN): "CONTRAST_DOWN",
+    SpecialKeyCode.mediaKeyOffset + UInt16(NX_KEYTYPE_LAUNCH_PANEL): "LAUNCH_PANEL",
+    SpecialKeyCode.mediaKeyOffset + UInt16(NX_KEYTYPE_EJECT): "EJECT",
+    SpecialKeyCode.mediaKeyOffset + UInt16(NX_KEYTYPE_VIDMIRROR): "VIDMIRROR",
+    SpecialKeyCode.mediaKeyOffset + UInt16(NX_KEYTYPE_PLAY): "Play",
+    SpecialKeyCode.mediaKeyOffset + UInt16(NX_KEYTYPE_NEXT): "NEXT",
+    SpecialKeyCode.mediaKeyOffset + UInt16(NX_KEYTYPE_PREVIOUS): "PREVIOUS",
+    SpecialKeyCode.mediaKeyOffset + UInt16(NX_KEYTYPE_FAST): "Fast",
+    SpecialKeyCode.mediaKeyOffset + UInt16(NX_KEYTYPE_REWIND): "Rewind",
+    SpecialKeyCode.mediaKeyOffset + UInt16(NX_KEYTYPE_ILLUMINATION_UP): "Illumination_up",
+    SpecialKeyCode.mediaKeyOffset + UInt16(NX_KEYTYPE_ILLUMINATION_DOWN): "Illumination_down",
+    SpecialKeyCode.mediaKeyOffset + UInt16(NX_KEYTYPE_ILLUMINATION_TOGGLE): "ILLUMINATION_TOGGLE"
 ]

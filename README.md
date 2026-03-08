@@ -48,14 +48,12 @@ https://ei-kana.appspot.com/
 ## アンインストール方法
 
 ⌘英かな.appをゴミ箱に入れてください。  
-また、設定ファイルが`~/Library/Preferences/io.github.imasanari.cmd-eikana.plist`にあります。
+また、設定ファイルが`~/Library/Preferences/io.github.yuyan7.cmd-eikana.plist`にあります。
 綺麗さっぱり消したいという場合はこちらもゴミ箱に入れてください。
 
 ## 動作確認
 
-- OS X El Capitan 10.11.5 (未確認)
-- mac OS Sierra 10.12 (未確認)
-- macOS Big Sur 11.1 (Apple M1)
+- macOS Tahoe 26 (Apple Silicon)
 
 ## ライセンス
 MIT License

@@ -13,37 +13,20 @@ class MappingMenu: NSPopUpButton {
     
     func up() {
         if let row = self.row, row - 1 != -1 {
-            let keyMapping = keyMappingList[row]
-            
-            keyMappingList[row] = keyMappingList[row - 1]
-            keyMappingList[row - 1] = keyMapping
+            AppState.shared.swapKeyMappings(at: row, and: row - 1)
         }
     }
     func move(_ at: Int) {
-        var at = at
         if let row = self.row {
-            let keyMapping = keyMappingList[row]
-            
-            if at < 0 {
-                at = 0
-            }
-            else if at > keyMappingList.count - 1 {
-                at = keyMappingList.count - 1
-            }
-            
-            keyMappingList.remove(at: row)
-            keyMappingList.insert(keyMapping, at: at)
+            AppState.shared.moveKeyMapping(from: row, to: at)
         }
     }
     func down() {
-        if let row = self.row, row + 1 != keyMappingList.count {
-            let keyMapping = keyMappingList[row]
-            
-            keyMappingList[row] = keyMappingList[row + 1]
-            keyMappingList[row + 1] = keyMapping
+        if let row = self.row, row + 1 != AppState.shared.keyMappingCount() {
+            AppState.shared.swapKeyMappings(at: row, and: row + 1)
         }
     }
     func remove() {
-        keyMappingList.remove(at: self.row!)
+        AppState.shared.removeKeyMapping(at: self.row!)
     }
 }

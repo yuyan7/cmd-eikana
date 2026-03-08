@@ -8,9 +8,6 @@
 
 import Cocoa
 
-var statusItem = NSStatusBar.system.statusItem(withLength: CGFloat(NSStatusItem.variableLength))
-var loginItem = NSMenuItem()
-
 @NSApplicationMain
 class AppDelegate: NSObject, NSApplicationDelegate {
 
@@ -19,30 +16,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     let keyEvent = KeyEvent()
     
     func applicationDidFinishLaunching(_ aNotification: Notification) {
-        // Insert code here to initialize your application
-        
-//         resetUserDefault() // デバッグ用
-        
-        ////////////////////////////
-        // 保存データの読み込み
-        ////////////////////////////
-        
         let userDefaults = UserDefaults.standard
         
         // 「ログイン後にこのアプリを起動」
-        if userDefaults.object(forKey: "lunchAtStartup") == nil {
+        if userDefaults.object(forKey: "launchAtStartup") == nil {
             setLaunchAtStartup(true)
-            userDefaults.set(1, forKey: "lunchAtStartup")
+            userDefaults.set(1, forKey: "launchAtStartup")
         }
         
         // 「起動時にアップデートを確認」
-        let checkUpdateState = userDefaults.object(forKey: "checkUpdateAtlaunch")
+        let checkUpdateState = userDefaults.object(forKey: "checkUpdateAtLaunch")
         
         if checkUpdateState == nil {
-            userDefaults.set(1, forKey: "checkUpdateAtlaunch")
+            userDefaults.set(1, forKey: "checkUpdateAtLaunch")
             checkUpdate()
         }
-        else if checkUpdateState as! Int == 1 {
+        else if let state = checkUpdateState as? Int, state == 1 {
             checkUpdate()
         }
         
@@ -50,12 +39,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let exclusionAppsListData = userDefaults.object(forKey: "exclusionApps") as? [[AnyHashable: Any]] {
             for val in exclusionAppsListData {
                 if let exclusionApps = AppData(dictionary: val) {
-                    exclusionAppsList.append(exclusionApps)
+                    AppState.shared.addExcludedApp(exclusionApps)
                 }
-            }
-            
-            for val in exclusionAppsList {
-                exclusionAppsDict[val.id] = val.name
             }
         }
         
@@ -63,11 +48,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let keyMappingListData = userDefaults.object(forKey: "mappings") as? [[AnyHashable: Any]] {
             for val in keyMappingListData {
                 if let mapping = KeyMapping(dictionary: val) {
-                    keyMappingList.append(mapping)
+                    AppState.shared.addKeyMapping(mapping)
                 }
             }
-            
-            keyMappingListToShortcutList()
         }
         else {
             if let oneShotModifiersData = userDefaults.object(forKey: "oneShotModifiers") as? [AnyObject] {
@@ -77,8 +60,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                         let outputDic = val["output"] as? [AnyHashable: Any],
                         let output = KeyboardShortcut(dictionary: outputDic)
                     {
-                        keyMappingList.append(KeyMapping(input: KeyboardShortcut(keyCode: CGKeyCode(inputKeyCodeInt)),
-                                                         output: output))
+                        AppState.shared.addKeyMapping(KeyMapping(input: KeyboardShortcut(keyCode: CGKeyCode(inputKeyCodeInt)),
+                                                                  output: output))
                     }
                 }
                 
@@ -86,34 +69,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             else {
                 // 初期設定（左右のコマンドキー単体で英数/かな）
-                keyMappingList = [
+                AppState.shared.setKeyMappings([
                     KeyMapping(input: KeyboardShortcut(keyCode: 55), output: KeyboardShortcut(keyCode: 102)),
                     KeyMapping(input: KeyboardShortcut(keyCode: 54), output: KeyboardShortcut(keyCode: 104))
-                ]
+                ])
             }
-            
-            saveKeyMappings()
-            keyMappingListToShortcutList()
+
+            AppState.shared.saveKeyMappings()
         }
         
-        ////////////////////////////
-        // UIの初期化
-        ////////////////////////////
-        
         preferenceWindowController = PreferenceWindowController.getInstance()
-        // preferenceWindowController.showAndActivate(self)
         
         let menu = NSMenu()
-        statusItem.title = "⌘"
-        statusItem.highlightMode = true
-        statusItem.menu = menu
+        AppState.shared.configureStatusItem(title: "⌘", menu: menu)
         
-//        loginItem = menu.addItem(withTitle: "ログイン時に開く", action: #selector(AppDelegate.launch(_:)), keyEquivalent: "")
-//        loginItem.state = applicationIsInStartUpItems() ? 1 : 0
-//        
-//        menu.addItem(NSMenuItem.separator())
-        
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as! String
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
         
         menu.addItem(withTitle: "About ⌘英かな \(version)", action: #selector(AppDelegate.open(_:)), keyEquivalent: "")
         menu.addItem(withTitle: "Preferences...", action: #selector(AppDelegate.openPreferencesSerector(_:)), keyEquivalent: "")
@@ -124,12 +94,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         keyEvent.start()
     }
     
-    func applicationWillTerminate(_ aNotification: Notification) {
-        // Insert code here to tear down your application
-    }
+    func applicationWillTerminate(_ aNotification: Notification) {}
     
     func applicationDidResignActive(_ notification: Notification) {
-        activeKeyTextField?.blur()
+        AppState.shared.blurFocusedKeyField()
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         preferenceWindowController.showAndActivate(self)
@@ -155,24 +123,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         preferenceWindowController.showAndActivate(self)
     }
     
-    @IBAction func launch(_ sender: NSButton) {
-        if sender.state.rawValue == 0 {
-            sender.state = NSControl.StateValue(rawValue: 1)
-//            addLaunchAtStartup()
-        }
-        else {
-            sender.state = NSControl.StateValue(rawValue: 0)
-//            removeLaunchAtStartup()
-        }
-    }
-    
     @IBAction func restart(_ sender: NSButton) {
         let url = URL(fileURLWithPath: Bundle.main.resourcePath!)
-        let path = url.deletingLastPathComponent().deletingLastPathComponent().absoluteString
+        let path = url.deletingLastPathComponent().deletingLastPathComponent().path
         let task = Process()
-        task.launchPath = "/usr/bin/open"
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
         task.arguments = [path]
-        task.launch()
+        do {
+            try task.run()
+        } catch {
+            print("Failed to restart: \(error)")
+        }
         NSApplication.shared.terminate(self)
     }
     
@@ -180,4 +141,3 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApplication.shared.terminate(self)
     }
 }
-

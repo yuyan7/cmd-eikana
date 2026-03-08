@@ -8,33 +8,6 @@
 
 import Cocoa
 
-
-var shortcutList: [CGKeyCode: [KeyMapping]] = [:]
-
-var keyMappingList: [KeyMapping] = []
-
-func saveKeyMappings() {
-    UserDefaults.standard.set(keyMappingList.map {$0.toDictionary()} , forKey: "mappings")
-}
-
-func keyMappingListToShortcutList() {
-    shortcutList = [:]
-    
-    for val in keyMappingList {
-        let key = val.input.keyCode
-        
-        if shortcutList[key] == nil {
-            shortcutList[key] = []
-        }
-        
-        shortcutList[key]?.append(val)
-        
-        #if DEBUG
-            print("\(key): \(val.input.toString()) => \(val.output.toString())")
-        #endif
-    }
-}
-
 class ShortcutsController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
     @IBOutlet weak var tableView: NSTableView!
     
@@ -44,22 +17,22 @@ class ShortcutsController: NSViewController, NSTableViewDataSource, NSTableViewD
     }
     
     override func mouseDown(with event: NSEvent) {
-        activeKeyTextField?.blur()
+        AppState.shared.blurFocusedKeyField()
     }
     
     func numberOfRows(in tableView: NSTableView) -> Int {
-        return keyMappingList.count
+        return AppState.shared.keyMappingCount()
     }
     
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        let id = tableColumn!.identifier
+        guard let id = tableColumn?.identifier else { return nil }
 
         if let cell = tableView.makeView(withIdentifier: id, owner: nil) as? NSTableCellView {
             if id.rawValue == "input" || id.rawValue == "output" {
-                let value = id.rawValue == "input" ? keyMappingList[row].input : keyMappingList[row].output
+                guard let keyMapping = AppState.shared.keyMapping(at: row) else { return cell }
+                let value = id.rawValue == "input" ? keyMapping.input : keyMapping.output
                 
-                // let textField = cell.textField!
-                let textField = cell.subviews[0] as! KeyTextField
+                guard let textField = cell.subviews[0] as? KeyTextField else { return cell }
                 
                 textField.stringValue = value.toString()
                 textField.shortcut = value
@@ -67,7 +40,7 @@ class ShortcutsController: NSViewController, NSTableViewDataSource, NSTableViewD
                 textField.isAllowModifierOnly = id.rawValue == "input"
             }
             if id.rawValue == "mapping-menu" {
-                let button = cell.subviews[0] as! MappingMenu
+                guard let button = cell.subviews[0] as? MappingMenu else { return cell }
                 
                 button.row = row
                 
@@ -80,7 +53,7 @@ class ShortcutsController: NSViewController, NSTableViewDataSource, NSTableViewD
         return nil
     }
     @objc func remove(_ sender: MappingMenu) {
-        activeKeyTextField?.blur()
+        AppState.shared.blurFocusedKeyField()
         
         switch sender.selectedItem!.title {
         case "この項目を削除", "remove":
@@ -96,19 +69,18 @@ class ShortcutsController: NSViewController, NSTableViewDataSource, NSTableViewD
             sender.move(sender.row! + 1)
             break
         case "最下部に移動", "move to bottom":
-            sender.move(keyMappingList.count - 1)
+            sender.move(AppState.shared.keyMappingCount() - 1)
             break
         default:
             break
         }
         
-        tableRreload()
+        tableReload()
     }
     
-    func tableRreload() {
+    func tableReload() {
         tableView.reloadData()
-        keyMappingListToShortcutList()
-        saveKeyMappings()
+        AppState.shared.saveKeyMappings()
     }
     
     @IBAction func quit(_ sender: AnyObject) {
@@ -116,7 +88,7 @@ class ShortcutsController: NSViewController, NSTableViewDataSource, NSTableViewD
     }
     
     @IBAction func addRow(_ sender: AnyObject) {
-        keyMappingList.append(KeyMapping())
-        tableRreload()
+        AppState.shared.addKeyMapping(KeyMapping())
+        tableReload()
     }
 }

@@ -22,19 +22,19 @@ class ExclusionAppsController: NSViewController, NSTableViewDataSource, NSTableV
     }
     
     func numberOfRows(in tableView: NSTableView) -> Int {
-        return exclusionAppsList.count + activeAppsList.count
+        return AppState.shared.combinedAppCount()
     }
     
     func tableView(_ tableView: NSTableView, objectValueFor tableColumn: NSTableColumn?, row: Int) -> Any? {
         let id = tableColumn!.identifier
         
-        let isExclusion =  row < exclusionAppsList.count
-        
+        guard let item = AppState.shared.combinedApp(at: row) else { return nil }
+        let isExclusion = item.isExcluded
+        let value = item.app
+
         if id.rawValue == "checkbox" {
             return isExclusion
         }
-        
-        let value = isExclusion ? exclusionAppsList[row] : activeAppsList[row - exclusionAppsList.count]
         
         if id.rawValue == "appName" {
             return value.name
@@ -47,36 +47,18 @@ class ExclusionAppsController: NSViewController, NSTableViewDataSource, NSTableV
     }
     func tableView(_ tableView: NSTableView, setObjectValue object: Any?, for tableColumn: NSTableColumn?, row: Int) {
         let id = tableColumn!.identifier
-        let isExclusion =  row < exclusionAppsList.count
         
         if id != NSUserInterfaceItemIdentifier(rawValue: "checkbox") {
             return
         }
-        
-        if isExclusion {
-            let item = exclusionAppsList.remove(at: row)
-            activeAppsList.insert(item, at: 0)
-        }
-        else {
-            let item = activeAppsList.remove(at: row - exclusionAppsList.count)
-            exclusionAppsList.append(item)
-        }
-        
-        exclusionAppsDict = [:]
-        
-        for val in exclusionAppsList {
-            exclusionAppsDict[val.id] = val.name
-        }
+
+        AppState.shared.toggleExcludedApp(at: row)
         
         tableReload()
-        saveExclusionApps()
+        AppState.shared.saveExcludedApps()
     }
     
     @objc func tableReload() {
         tableView.reloadData()
-    }
-    
-    func saveExclusionApps() {
-        UserDefaults.standard.set(exclusionAppsList.map {$0.toDictionary()} , forKey: "exclusionApps")
     }
 }

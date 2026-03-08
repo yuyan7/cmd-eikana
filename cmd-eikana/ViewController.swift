@@ -12,8 +12,8 @@ class ViewController: NSViewController, NSTableViewDataSource, NSTableViewDelega
     let userDefaults = UserDefaults.standard
     
     @IBOutlet weak var showIcon: NSButton!
-    @IBOutlet weak var lunchAtStartup: NSButton!
-    @IBOutlet weak var checkUpdateAtlaunch: NSButton!
+    @IBOutlet weak var launchAtStartup: NSButton!
+    @IBOutlet weak var checkUpdateAtLaunch: NSButton!
     @IBOutlet weak var updateButton: NSButton!
     
     override func viewDidLoad() {
@@ -21,7 +21,7 @@ class ViewController: NSViewController, NSTableViewDataSource, NSTableViewDelega
         // Do any additional setup after loading the view.
         
         let showIconState = userDefaults.object(forKey: "showIcon")
-        showIcon.state = NSControl.StateValue(rawValue: showIconState == nil ? 1 : showIconState as! Int)
+        showIcon.state = NSControl.StateValue(rawValue: (showIconState as? Int) ?? 1)
         
         if #available(OSX 10.12, *) {
         } else {
@@ -29,8 +29,8 @@ class ViewController: NSViewController, NSTableViewDataSource, NSTableViewDelega
             showIcon.isEnabled = false
         }
         
-        lunchAtStartup.state = NSControl.StateValue(rawValue: userDefaults.integer(forKey: "lunchAtStartup"))
-        checkUpdateAtlaunch.state = NSControl.StateValue(rawValue: userDefaults.integer(forKey: "checkUpdateAtlaunch"))
+        launchAtStartup.state = NSControl.StateValue(rawValue: userDefaults.integer(forKey: "launchAtStartup"))
+        checkUpdateAtLaunch.state = NSControl.StateValue(rawValue: userDefaults.integer(forKey: "checkUpdateAtLaunch"))
     }
 
     override var representedObject: Any? {
@@ -41,15 +41,15 @@ class ViewController: NSViewController, NSTableViewDataSource, NSTableViewDelega
 
     @available(OSX 10.12, *)
     @IBAction func clickShowIcon(_ sender: AnyObject) {
-        statusItem.isVisible = (showIcon.state == NSControl.StateValue.on)
+        AppState.shared.setStatusItemVisible(showIcon.state == NSControl.StateValue.on)
         userDefaults.set(showIcon.state, forKey: "showIcon")
     }
-    @IBAction func clickLunchAtStartup(_ sender: AnyObject) {
-        setLaunchAtStartup(lunchAtStartup.state == NSControl.StateValue.on)
-        userDefaults.set(lunchAtStartup.state, forKey: "lunchAtStartup")
+    @IBAction func clickLaunchAtStartup(_ sender: AnyObject) {
+        setLaunchAtStartup(launchAtStartup.state == NSControl.StateValue.on)
+        userDefaults.set(launchAtStartup.state, forKey: "launchAtStartup")
     }
-    @IBAction func clickCheckUpdateAtlaunch(_ sender: AnyObject) {
-        userDefaults.set(checkUpdateAtlaunch.state, forKey: "checkUpdateAtlaunch")
+    @IBAction func clickCheckUpdateAtLaunch(_ sender: AnyObject) {
+        userDefaults.set(checkUpdateAtLaunch.state, forKey: "checkUpdateAtLaunch")
     }
     @IBAction func test(_ sender: Any) {
         
@@ -57,7 +57,8 @@ class ViewController: NSViewController, NSTableViewDataSource, NSTableViewDelega
     
     @IBAction func checkUpdateButton(_ sender: AnyObject) {
         updateButton.isEnabled = false
-        checkUpdate({ (isNewVer: Bool?) -> Void in
+        checkUpdate({ [weak self] (isNewVer: Bool?) -> Void in
+            guard let self = self else { return }
             self.updateButton.isEnabled = true
             if isNewVer == nil {
                 let alert = NSAlert()
@@ -71,7 +72,7 @@ class ViewController: NSViewController, NSTableViewDataSource, NSTableViewDelega
                 let alert = NSAlert()
                 
                 alert.messageText = "最新バージョンです"
-                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as! String
+                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
                 alert.informativeText = "ver.\(version)"
                 
                 alert.runModal()
@@ -79,4 +80,3 @@ class ViewController: NSViewController, NSTableViewDataSource, NSTableViewDelega
         })
     }
 }
-

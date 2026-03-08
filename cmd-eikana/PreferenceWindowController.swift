@@ -24,6 +24,6 @@ class PreferenceWindowController: NSWindowController, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
     override func mouseDown(with event: NSEvent) {
-        activeKeyTextField?.blur()
+        AppState.shared.blurFocusedKeyField()
     }
 }
