@@ -6,31 +6,35 @@
 //  Copyright (c) 2016 iMasanari
 //
 
-// TODO: NSURLSessionでの書き直し
-// NSURLConnection.sendAsynchronousRequestはdeprecatedだが
-// NSURLSessionを使うと実行時にalert.runModal()でエラーが出たため
-// NSURLConnectionで代用中
-
 import Cocoa
 
 func checkUpdate(_ callback: ((_ isNewVer: Bool?) -> Void)? = nil) {
-    let url = URL(string: "https://ei-kana.appspot.com/update.json")!
+    let url = URL(string: "https://api.github.com/repos/yuyan7/cmd-eikana/releases/latest")!
     let request = URLRequest(url: url)
     
     let handler = { (data:Data?, res:URLResponse?, error:Error?) -> Void in
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
         var newVersion = ""
         var description = ""
-        var url = "https://ei-kana.appspot.com"
+        var releaseUrl = "https://github.com/yuyan7/cmd-eikana/releases"
         
         do {
             if let data = data,
                let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
-                newVersion = json["version"] as? String ?? ""
-                description = json["description"] as? String ?? ""
+                // GitHub APIからタグ名を取得（例: "v2.2.3-arm" -> "2.2.3"）
+                if let tagName = json["tag_name"] as? String {
+                    // "v"プレフィックスを除去し、"-arm"や"-intel"などのサフィックスも除去
+                    let versionPart = tagName.hasPrefix("v") ? String(tagName.dropFirst()) : tagName
+                    if let hyphenIndex = versionPart.firstIndex(of: "-") {
+                        newVersion = String(versionPart[..<hyphenIndex])
+                    } else {
+                        newVersion = versionPart
+                    }
+                }
+                description = json["body"] as? String ?? ""
                 
-                if let NSURLDownload = json["url"] as? String {
-                    url = NSURLDownload
+                if let htmlUrl = json["html_url"] as? String {
+                    releaseUrl = htmlUrl
                 }
             }
         } catch let error as NSError {
@@ -41,16 +45,18 @@ func checkUpdate(_ callback: ((_ isNewVer: Bool?) -> Void)? = nil) {
         let isAbleUpdate: Bool? = (newVersion == "") ? nil : newVersion != version
         
         if isAbleUpdate == true {
-            let alert = NSAlert()
-            alert.messageText = "⌘英かな ver.\(newVersion) が利用可能です"
-            alert.informativeText = description
-            alert.addButton(withTitle: "Download")
-            alert.addButton(withTitle: "Cancel")
-            // alert.showsSuppressionButton = true;
-            let ret = alert.runModal()
-            
-            if (ret == NSApplication.ModalResponse.alertFirstButtonReturn) {
-                NSWorkspace.shared.open(URL(string: url)!)
+            DispatchQueue.main.async {
+                let alert = NSAlert()
+                alert.messageText = "⌘英かな ver.\(newVersion) が利用可能です"
+                alert.informativeText = description
+                alert.addButton(withTitle: "Download")
+                alert.addButton(withTitle: "Cancel")
+                // alert.showsSuppressionButton = true;
+                let ret = alert.runModal()
+                
+                if (ret == NSApplication.ModalResponse.alertFirstButtonReturn) {
+                    NSWorkspace.shared.open(URL(string: releaseUrl)!)
+                }
             }
         }
         

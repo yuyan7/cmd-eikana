@@ -411,9 +411,11 @@ class KeyEvent: NSObject {
         state.setLastModifierKeyCode(nil)
       
         if activeKeyTextField() != nil {
-            updateActiveKeyTextField { keyTextField in
-                keyTextField.shortcut = KeyboardShortcut(event)
-                keyTextField.stringValue = keyTextField.shortcut!.toString()
+            DispatchQueue.main.async { [weak self] in
+                self?.updateActiveKeyTextField { keyTextField in
+                    keyTextField.shortcut = KeyboardShortcut(event)
+                    keyTextField.stringValue = keyTextField.shortcut!.toString()
+                }
             }
 
             return nil
@@ -450,14 +452,16 @@ class KeyEvent: NSObject {
         state.setLastModifierKeyCode(CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)))
         
         if activeKeyTextField() != nil {
-            updateActiveKeyTextField { keyTextField in
-                guard keyTextField.isAllowModifierOnly else {
-                    return
-                }
+            DispatchQueue.main.async { [weak self] in
+                self?.updateActiveKeyTextField { keyTextField in
+                    guard keyTextField.isAllowModifierOnly else {
+                        return
+                    }
 
-                let shortcut = KeyboardShortcut(event)
-                keyTextField.shortcut = shortcut
-                keyTextField.stringValue = shortcut.toString()
+                    let shortcut = KeyboardShortcut(event)
+                    keyTextField.shortcut = shortcut
+                    keyTextField.stringValue = shortcut.toString()
+                }
             }
         }
         
@@ -487,14 +491,16 @@ class KeyEvent: NSObject {
         state.setLastModifierKeyCode(nil)
         
         if activeKeyTextField() != nil {
-            updateActiveKeyTextField { keyTextField in
-                guard keyTextField.isAllowModifierOnly else {
-                    return
-                }
+            DispatchQueue.main.async { [weak self] in
+                self?.updateActiveKeyTextField { keyTextField in
+                    guard keyTextField.isAllowModifierOnly else {
+                        return
+                    }
 
-                keyTextField.shortcut = KeyboardShortcut(keyCode: CGKeyCode(1000 + mediaKeyEvent.keyCode),
-                                                         flags: mediaKeyEvent.flags)
-                keyTextField.stringValue = keyTextField.shortcut!.toString()
+                    keyTextField.shortcut = KeyboardShortcut(keyCode: CGKeyCode(1000 + mediaKeyEvent.keyCode),
+                                                             flags: mediaKeyEvent.flags)
+                    keyTextField.stringValue = keyTextField.shortcut!.toString()
+                }
             }
 
             return nil

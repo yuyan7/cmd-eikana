@@ -110,6 +110,7 @@
 		};
 /* End PBXGroup section */
 
+/* Begin PBXNativeTarget section */
 		629428161D387503001BD4E9 /* ⌘英かな */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 629428311D387503001BD4E9 /* Build configuration list for PBXNativeTarget "⌘英かな" */;
@@ -180,6 +181,7 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXSourcesBuildPhase section */
 		629428131D387503001BD4E9 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -206,6 +208,7 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXVariantGroup section */
 		629428201D387503001BD4E9 /* Main.storyboard */ = {
 			isa = PBXVariantGroup;
 			children = (
@@ -343,7 +346,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 16;
+				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = D3VK56MX7L;
 				INFOPLIST_FILE = "cmd-eikana/Info.plist";
@@ -352,7 +355,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.2.3;
+				MARKETING_VERSION = 2.2.5;
 				PRODUCT_BUNDLE_IDENTIFIER = "io.github.yuyan7.cmd-eikana";
 				PRODUCT_NAME = "⌘英かな";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -367,7 +370,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 16;
+				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = D3VK56MX7L;
 				INFOPLIST_FILE = "cmd-eikana/Info.plist";
@@ -376,7 +379,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.2.3;
+				MARKETING_VERSION = 2.2.5;
 				PRODUCT_BUNDLE_IDENTIFIER = "io.github.yuyan7.cmd-eikana";
 				PRODUCT_NAME = "⌘英かな";
 				PROVISIONING_PROFILE_SPECIFIER = "";
